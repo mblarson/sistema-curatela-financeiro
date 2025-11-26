@@ -60,62 +60,121 @@
     <!-- SUPABASE INTEGRATION POINT: Supabase Client Library -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        /* Configuração de Cores e Fontes (Tailwind customizado) - PALETA ATICCA-LIKE (Deep Navy / Cyan) */
+        /* Configuração de Cores e Fontes (Tailwind customizado) - PALETA AUDAX-INSPIRED */
         :root {
-            /* NOVA PALETA BASEADA NA IMAGEM: #141d34 (Fundo Principal), #fgb17a (Destaque/Accent) */
-            --color-primary: #141d34; /* Deep Blue/Navy - Fundo Principal */
-            --color-secondary: #fgb17a; /* Soft Orange - Cor de Destaque */
-            --color-background: #F8FAFC; /* Slate 50 - Light Background */
-            --color-surface: #FFFFFF; /* White */
-            --color-text-dark: #1F2937; /* Gray 800 */
-            --color-text-light: #6B7280; /* Gray 500 */
+            /* Paleta Audax: Deep Blue/Navy (Primária) e Electric Blue (Secundária) */
+            --color-primary: #012e52; /* Deep Navy Blue (Headers, Sidebar BG, Strong Elements) */
+            --color-secondary: #00a2ff; /* Electric Blue (Buttons, Active Links, Accent) */
+            --color-background: #F4F6F9; /* Light Gray/Off-white (Body Background) */
+            --color-surface: #FFFFFF; /* White (Cards/Containers) */
+            
+            --color-text-dark: #1F2937; /* Dark text for light backgrounds */
+            --color-text-light: #6B7280; /* Gray text for light backgrounds */
             --font-family: 'Inter', sans-serif;
         }
 
         /* Estilos Globais */
         body {
             font-family: var(--font-family);
-            background-color: var(--color-background);
-            color: var(--color-text-dark);
-            -webkit-tap-highlight-color: transparent; /* Melhor toque em mobile */
+            background-color: var(--color-background); /* Fundo cinza claro */
+            color: var(--color-text-dark); /* Texto principal escuro */
+            -webkit-tap-highlight-color: transparent;
         }
 
         /* Classes de utilidade forçada para elementos não-tailwind */
-        /* Ajuste de cores para o novo tema */
         .btn-primary {
-            /* Usando a cor de destaque (Soft Orange) */
-            @apply bg-[var(--color-secondary)] hover:bg-[#eb9d6b] text-white font-bold py-3 px-4 rounded-2xl transition duration-200 shadow-lg focus:outline-none focus:ring-4 focus:ring-[var(--color-secondary)] focus:ring-opacity-50 w-full md:w-auto;
+            /* Botão primário com o azul elétrico vibrante */
+            @apply bg-[var(--color-secondary)] hover:bg-[#007ccf] text-white font-bold py-3 px-4 rounded-2xl transition duration-200 shadow-lg focus:outline-none focus:ring-4 focus:ring-[var(--color-secondary)] focus:ring-opacity-50 w-full md:w-auto;
         }
         .btn-secondary {
+            /* Botão secundário neutro */
             @apply bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-4 rounded-2xl transition duration-200 shadow-sm focus:outline-none focus:ring-4 focus:ring-gray-400 focus:ring-opacity-50 w-full md:w-auto;
         }
         .input-text, .select-input, .date-input {
-            /* AJUSTE 1: Aumentar padding interno */
-            @apply w-full p-2 border border-gray-300 rounded-xl focus:border-[var(--color-secondary)] focus:ring-[var(--color-secondary)] shadow-sm transition duration-150;
-            padding: 8px 10px; /* Ajuste manual para padronizar 8-10px */
+            /* INPUTS: Fundo branco e borda neutra */
+            /* MELHORIA 5: Borda branca suave | MELHORIA 2: Padding interno de 10px */
+            @apply w-full border rounded-xl focus:border-[var(--color-secondary)] focus:ring-[var(--color-secondary)] shadow-sm transition duration-150;
+            background-color: var(--color-surface); 
+            color: var(--color-text-dark); 
+            padding: 10px; /* Padding interno consistente (10px) */
+            border: 1px solid rgba(18,10,143,0.5); 
+        }
+        .input-text::placeholder, .select-input::placeholder, .date-input::placeholder {
+             color: var(--color-text-light);
+             opacity: 0.8;
         }
         .card {
-            /* Sombra mais marcada para profundidade (Aticca-like) */
-            @apply bg-white p-6 rounded-2xl shadow-xl transition duration-300 ease-in-out;
-        }
-        .nav-link.active-link {
-            @apply bg-slate-100 text-slate-800 font-semibold;
-        }
-        /* Ajuste para ícones do menu lateral */
-        .nav-link i {
-            /* Garante que os ícones fiquem com a cor principal (Navy) por padrão */
-            color: var(--color-primary);
-        }
-        .nav-link.active-link i {
-            /* Ícone de link ativo com a cor de destaque (Soft Orange) */
-            color: var(--color-secondary); 
-        }
-        /* Título do menu lateral */
-        #side-drawer h2 {
-            color: var(--color-primary);
+            /* CARDS: Fundo branco, sombra limpa */
+            /* AJUSTE: Padding reduzido em todos os cards para p-4 (16px) */
+            @apply p-4 rounded-2xl shadow-xl transition duration-300 ease-in-out;
+            background-color: var(--color-surface);
+            color: var(--color-text-dark);
         }
         
-        /* CORREÇÃO AQUI: Posiciona o contêiner de mensagens na parte inferior direita */
+        /* HEADER PRINCIPAL e TÍTULOS */
+        header {
+            background-color: var(--color-surface); /* Fundo branco */
+            color: var(--color-text-dark);
+        }
+        /* Cor dos títulos principais (usar a cor primária Deep Blue) */
+        header h1, .card h2 {
+            color: var(--color-primary) !important;
+        }
+        /* Labels e outros textos */
+        .card h3, label, p, td {
+            color: var(--color-text-dark);
+        }
+        
+        /* MELHORIA 4: MENU LATERAL (DRAWER) - USANDO DEEP BLUE */
+        #side-drawer {
+            background-color: var(--color-primary); /* Fundo Deep Blue */
+            color: white;
+        }
+        #side-drawer h2 {
+             color: var(--color-secondary) !important; /* Título do menu em Electric Blue */
+        }
+        .nav-link {
+            color: white !important; /* Textos do menu brancos */
+            @apply hover:bg-white hover:bg-opacity-10; /* Hover suave */
+        }
+        .nav-link.active-link {
+            background-color: var(--color-secondary); /* Fundo ativo em Electric Blue */
+            color: white !important;
+        }
+        .nav-link i {
+            color: white !important; /* Ícones brancos */
+        }
+        
+        /* TOTALIZADORES: Ajuste de cor de fundo para contraste no tema claro */
+        #totalizadores > div {
+             background-color: #f3f4f6 !important; /* Cinza suave */
+             color: var(--color-text-dark);
+        }
+        #totalizadores p {
+            color: var(--color-text-dark) !important;
+        }
+        
+        /* TABELAS GERAIS (Cabeçalho - THEAD) */
+        .compact-table th {
+            font-weight: 600;
+            color: var(--color-text-light);
+            background-color: #F3F4F6; /* Cinza claro do header */
+            border-bottom: 2px solid #E5E7EB; /* Linha de separação mais forte */
+        }
+        .compact-table td {
+             color: var(--color-text-dark); /* Texto do corpo escuro */
+        }
+        .compact-table tbody tr {
+             background-color: var(--color-surface); /* Linhas brancas */
+        }
+        .compact-table tbody tr.hover\:bg-gray-50:hover {
+            background-color: #F9FAFB; /* Hover suave */
+        }
+        .compact-table td::before {
+            color: var(--color-text-light); /* Rótulos mobile cinzas */
+        }
+
+        /* Contêiner de mensagens (mantido na parte inferior) */
         #message-container {
             position: fixed;
             bottom: 1rem; /* 16px da parte inferior */
@@ -159,12 +218,10 @@
                 width: 280px;
                 height: 100vh;
                 top: 0;
-                /* Adiciona uma linha sutil para separar do conteúdo principal */
-                border-right: 1px solid #E2E8F0; /* Slate 200 */
+                border-right: 1px solid #E2E8F0; /* Separador */
             }
             #main-content {
                 margin-left: 280px;
-                /* Garante que o conteúdo principal use o padding completo */
                 padding-left: 2rem;
                 padding-right: 2rem;
             }
@@ -174,11 +231,16 @@
             .desktop-only {
                 display: block;
             }
+            
+            /* Restaura o padding normal dos cards */
+            .card {
+                padding: 1rem; 
+            }
 
             /* CORREÇÃO 2: Alinhamento da Coluna "Nº Nota" no Desktop */
             .compact-table thead th, .compact-table tbody td {
-                /* Remove estilos de largura inline no HTML para usar o CSS fixo */
                 width: auto;
+                text-align: left !important;
             }
             
             /* Define as larguras fixas no desktop para todas as colunas */
@@ -189,7 +251,6 @@
             /* Alinha Coluna Nº Nota */
             .compact-table th:nth-child(4) {
                  width: 12%; 
-                 /* Garante que o texto "Nº Nota" fique em uma linha */
                  white-space: nowrap; 
             }
             .compact-table td:nth-child(4) {
@@ -197,15 +258,15 @@
             }
             
             .compact-table th:nth-child(5), .compact-table td:nth-child(5) { width: 15%; } /* Conta */
-            .compact-table th:nth-child(6), .compact-table td:nth-child(6) { width: 10%; } /* Valor */
-            .compact-table th:nth-child(7), .compact-table td:nth-child(7) { width: 8%; } /* Ações */
+            .compact-table th:nth-child(6), .compact-table td:nth-child(6) { 
+                width: 10%; 
+                text-align: right !important; /* Alinhamento do valor */
+            } 
+            .compact-table th:nth-child(7), .compact-table td:nth-child(7) { 
+                width: 8%; 
+                text-align: center !important; /* Alinhamento da ação */
+            } 
             
-             /* Garante o fundo e cor para TODOS os cabeçalhos */
-            .compact-table thead th {
-                background-color: #F3F4F6; /* grey-100 */
-                color: var(--color-text-light);
-                border-bottom: 1px solid #E5E7EB;
-            }
              /* Oculta as tabelas no desktop */
             #tblLancamentosTable {
                 display: table;
@@ -220,7 +281,7 @@
         /* No mobile, o main content precisa de padding suficiente */
         @media (max-width: 1023px) {
              #main-content {
-                padding: 1rem; /* Padding reduzido para telas pequenas */
+                padding: 1rem; /* Margem externa (16px) */
              }
              /* Alinha os botões no formulário de lançamento para o centro/coluna */
              #formLancamento > div:last-child {
@@ -235,6 +296,31 @@
                 display: flex; /* Transforma em lista vertical */
                 flex-direction: column;
                 gap: 0.75rem; /* Espaçamento entre os cards */
+             }
+             
+             /* Restaura o padding normal dos cards */
+             .card {
+                 padding: 1rem;
+             }
+        }
+        
+        /* MELHORIA 1: CLASSES DE FLEXIBILIDADE PARA INPUTS LADO A LADO NO MOBILE */
+        @media (max-width: 768px) {
+             .input-group {
+                 display: flex;
+                 gap: 1rem; /* 16px de gap entre os campos */
+             }
+             .input-group > div {
+                 flex: 1; /* Faz com que os campos dentro do input-group ocupem 50% */
+             }
+             /* MELHORIA 3: Margem externa para evitar que os containers colem na lateral */
+             #main-content {
+                 padding: 10px !important; /* Reduz padding do main para dar espaço */
+             }
+             .card {
+                 margin-left: 10px;
+                 margin-right: 10px;
+                 width: auto;
              }
         }
 
@@ -294,19 +380,17 @@
 
             /* CORREÇÃO 1: Estilo específico para a célula de Ações (botões) */
             .compact-table td:last-child {
-                /* Garante que os botões fiquem em nova linha sob o rótulo 'Ações' */
                 text-align: left !important;
-                display: block; /* Volta para block para empilhar o conteúdo */
+                display: block; 
                 gap: 0.5rem;
-                padding-top: 2rem; /* Adiciona espaço para o rótulo */
+                padding-top: 2rem; 
                 padding-bottom: 0.5rem; 
                 min-height: auto; 
             }
             .compact-table td:last-child::before {
-                 /* Ajusta o rótulo "Ações" para o topo da célula */
                  top: 0.5rem; 
                  bottom: auto; 
-                 width: 100%; /* Permite o rótulo se expandir para evitar conflito com o flex */
+                 width: 100%; 
                  text-align: left;
             }
              /* Força os botões a ficarem em linha horizontal abaixo do rótulo */
@@ -319,12 +403,87 @@
             
             /* Ajuste para células específicas no relatório de Conciliação (saldo, sinal) */
             .compact-table #relSaldoAnterior, .compact-table #relSaldoFinal, .compact-table td.text-right {
-                /* Garante que os saldos e valores fiquem visíveis */
                 font-size: 1rem;
                 white-space: nowrap;
                 overflow: hidden;
                 text-overflow: ellipsis;
             }
+        }
+
+        /* ==================================================================== */
+        /* ESTILOS PARA CARD EXPANSÍVEL (NOVO) */
+        /* ==================================================================== */
+
+        .expandable {
+            /* Garante que o conteúdo que extrapola seja cortado */
+            overflow: hidden;
+            /* Adicionado padding-top e padding-bottom 0 para que o padding vertical seja controlado pelo exp-header/exp-body quando recolhido */
+            padding-top: 0 !important; 
+            padding-bottom: 0 !important; 
+            /* Transição suave */
+            transition: max-height 0.3s ease-out, padding 0.3s ease-out;
+        }
+
+        .exp-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        /* Lógica para restaurar o padding original do card no header/body */
+        .expandable.p-4 .exp-header {
+            padding-top: 1rem;
+            padding-bottom: 1rem;
+            padding-left: 1rem;
+            padding-right: 1rem;
+        }
+        .expandable.md\:p-6 .exp-header {
+            padding-top: 1.5rem;
+            padding-bottom: 1.5rem;
+        }
+        
+        .expandable.p-4 .exp-body {
+            padding-left: 1rem;
+            padding-right: 1rem;
+            padding-bottom: 1rem;
+            margin-top: 0;
+        }
+        .expandable.md\:p-6 .exp-body {
+             padding-left: 1.5rem;
+             padding-right: 1.5rem;
+             padding-bottom: 1.5rem;
+        }
+
+        /* Seta */
+        .arrow {
+            transition: transform .3s ease-in-out;
+        }
+
+        /* Estado Recolhido */
+        .collapsed {
+            /* Um valor alto o suficiente para caber o header recolhido, mas baixo para começar a transição */
+            max-height: 80px; 
+        }
+        .collapsed .exp-body {
+            /* Oculta o corpo quando recolhido */
+            display: none; 
+        }
+
+        /* Seta no Estado Recolhido */
+        .collapsed .arrow {
+            transform: rotate(0deg); /* Seta para baixo */
+        }
+
+        /* Seta no Estado Expandido */
+        .expandable:not(.collapsed) .arrow {
+            transform: rotate(90deg); /* Seta para a direita */
+        }
+
+        /* Fixa o padding vertical do card no estado EXPANDIDO, onde o JS define max-height: 1000px */
+        .expandable:not(.collapsed) {
+            max-height: 1000px; /* Grande o suficiente para a maioria dos conteúdos, para dar a ilusão de altura automática */
         }
     </style>
 </head>
@@ -392,95 +551,129 @@
         <div id="page-content" class="space-y-8">
             <!-- 1. Lançar Receita/Despesa (Padrão) -->
             <section id="lancamentos-page" class="page hidden space-y-6">
-                <div class="card p-4 md:p-6">
-                    <h2 class="text-2xl font-semibold mb-4 text-slate-800">Novo Lançamento</h2>
-                    <form id="formLancamento" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        <div class="col-span-1">
-                            <label for="lancamentoData" class="block text-sm font-medium text-gray-700 mb-1">Data * (dd/mm/aaaa)</label>
-                            <!-- ALTERADO PARA TYPE="TEXT" e adicionado a classe 'date-masked-input' para aplicar máscara JS -->
-                            <input type="text" id="lancamentoData" class="date-masked-input input-text" placeholder="dd/mm/aaaa" required maxlength="10">
-                        </div>
-                        <div class="col-span-1 md:col-span-2 lg:col-span-1">
-                            <label for="lancamentoDescricao" class="block text-sm font-medium text-gray-700 mb-1">Descrição *</label>
-                            <input type="text" id="lancamentoDescricao" class="input-text" placeholder="Ex: Salário, Aluguel" required maxlength="255">
-                        </div>
-                        <div class="col-span-1">
-                            <label for="lancamentoCategoria" class="block text-sm font-medium text-gray-700 mb-1">Categoria *</label>
-                            <select id="lancamentoCategoria" class="select-input" required>
-                                <option value="">Selecione a Categoria</option>
-                            </select>
-                        </div>
-                        <div class="col-span-1">
-                            <label for="lancamentoConta" class="block text-sm font-medium text-gray-700 mb-1">Conta Bancária *</label>
-                            <select id="lancamentoConta" class="select-input" required>
-                                <option value="">Selecione a Conta</option>
-                            </select>
-                        </div>
-                        <div class="col-span-1">
-                            <label for="lancamentoValor" class="block text-sm font-medium text-gray-700 mb-1">Valor * (R$)</label>
-                            <!-- ALTERADO PARA TYPE="TEXT" e adicionado a classe 'monetary-input' para aplicar formatação JS -->
-                            <input type="text" id="lancamentoValor" class="monetary-input input-text" placeholder="R$ 0,00" required>
-                        </div>
-                        <div class="col-span-1">
-                            <label for="lancamentoNota" class="block text-sm font-medium text-gray-700 mb-1">Número da Nota (Opcional)</label>
-                            <input type="text" id="lancamentoNota" class="input-text" placeholder="Ex: NF-e 12345" maxlength="100">
-                        </div>
-                        <div class="col-span-full pt-2 flex justify-end">
-                            <button type="submit" class="btn-primary" id="btnSalvarLancamento">
-                                <i class="fas fa-plus-circle mr-2"></i> Salvar Lançamento
-                            </button>
-                        </div>
-                        <input type="hidden" id="lancamentoIdHidden">
-                    </form>
-                </div>
-
-                <!-- Filtros e Totalizadores -->
-                <div class="card">
-                    <h3 class="text-xl font-semibold mb-4">Filtros e Totalizadores</h3>
-                    <!-- CORREÇÃO DE GRID: Força 1 coluna no mobile para Data Início/Fim -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                        <div class="col-span-1">
-                            <label for="filtroDataInicio" class="block text-sm font-medium text-gray-700 mb-1">Data Início</label>
-                            <!-- ALTERADO PARA TYPE="TEXT" e adicionado a classe 'date-masked-input' para aplicar máscara JS -->
-                            <input type="text" id="filtroDataInicio" class="date-masked-input input-text" placeholder="dd/mm/aaaa" maxlength="10">
-                        </div>
-                        <div class="col-span-1">
-                            <label for="filtroDataFim" class="block text-sm font-medium text-gray-700 mb-1">Data Fim</label>
-                            <!-- ALTERADO PARA TYPE="TEXT" e adicionado a classe 'date-masked-input' para aplicar máscara JS -->
-                            <input type="text" id="filtroDataFim" class="date-masked-input input-text" placeholder="dd/mm/aaaa" maxlength="10">
-                        </div>
-                        <div class="col-span-1">
-                            <label for="filtroCategoria" class="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
-                            <select id="filtroCategoria" class="select-input">
-                                <option value="">Todas as Categorias</option>
-                            </select>
-                        </div>
-                        <div class="col-span-1">
-                            <label for="filtroConta" class="block text-sm font-medium text-gray-700 mb-1">Conta</label>
-                            <select id="filtroConta" class="select-input">
-                                <option value="">Todas as Contas</option>
-                            </select>
-                        </div>
+                <!-- CARD NOVO LANÇAMENTO (EXPANSÍVEL) -->
+                <div class="card expandable collapsed p-4 md:p-6">
+                    <!-- HEADER: Clicável para expandir/recolher -->
+                    <div class="exp-header">
+                        <h2 class="text-2xl font-semibold text-slate-800">Novo Lançamento</h2>
+                        <!-- ÍCONE: Seta que gira ao expandir -->
+                        <i class="fas fa-chevron-down arrow text-xl text-[var(--color-secondary)]"></i>
                     </div>
 
-                    <!-- Totalizadores -->
-                    <div id="totalizadores" class="grid grid-cols-3 gap-4 text-center border-t pt-4 mt-4">
-                        <div class="p-3 rounded-xl bg-green-50">
-                            <p class="text-sm font-medium text-green-700">Entradas</p>
-                            <p id="totalEntradas" class="text-lg font-bold text-green-900">R$ 0,00</p>
-                        </div>
-                        <div class="p-3 rounded-xl bg-red-50">
-                            <p class="text-sm font-medium text-red-700">Saídas</p>
-                            <p id="totalSaidas" class="text-lg font-bold text-red-900">R$ 0,00</p>
-                        </div>
-                        <div class="p-3 rounded-xl bg-blue-50">
-                            <p class="text-sm font-medium text-blue-700">Saldo</p>
-                            <p id="saldoTotal" class="text-lg font-bold text-blue-900">R$ 0,00</p>
-                        </div>
+                    <!-- BODY: Onde o conteúdo original vai e que será expandido/recolhido -->
+                    <div class="exp-body">
+                        <form id="formLancamento" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <!-- DATA e DESCRIÇÃO (LADO A LADO MOBILE) -->
+                             <div class="col-span-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4 input-group">
+                                <div class="col-span-1 form-field">
+                                    <label for="lancamentoData" class="block text-sm font-medium text-gray-700 mb-1">Data * (dd/mm/aaaa)</label>
+                                    <input type="text" id="lancamentoData" class="date-masked-input input-text" placeholder="dd/mm/aaaa" required maxlength="10">
+                                </div>
+                                <div class="col-span-1 form-field">
+                                    <label for="lancamentoDescricao" class="block text-sm font-medium text-gray-700 mb-1">Descrição *</label>
+                                    <input type="text" id="lancamentoDescricao" class="input-text" placeholder="Ex: Salário, Aluguel" required maxlength="255">
+                                </div>
+                             </div>
+                            
+                            <!-- CATEGORIA e CONTA (LADO A LADO MOBILE) -->
+                            <div class="col-span-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-4 input-group">
+                                <div class="col-span-1 form-field">
+                                    <label for="lancamentoCategoria" class="block text-sm font-medium text-gray-700 mb-1">Categoria *</label>
+                                    <select id="lancamentoCategoria" class="select-input" required>
+                                        <option value="">Selecione a Categoria</option>
+                                    </select>
+                                </div>
+                                <div class="col-span-1 form-field">
+                                    <label for="lancamentoConta" class="block text-sm font-medium text-gray-700 mb-1">Conta Bancária *</label>
+                                    <select id="lancamentoConta" class="select-input" required>
+                                        <option value="">Selecione a Conta</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- VALOR e Nº DA NOTA (LADO A LADO MOBILE) -->
+                            <div class="col-span-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4 input-group">
+                                <div class="col-span-1 form-field">
+                                    <label for="lancamentoValor" class="block text-sm font-medium text-gray-700 mb-1">Valor * (R$)</label>
+                                    <input type="text" id="lancamentoValor" class="monetary-input input-text" placeholder="R$ 0,00" required>
+                                </div>
+                                <div class="col-span-1 form-field">
+                                    <label for="lancamentoNota" class="block text-sm font-medium text-gray-700 mb-1">Número da Nota (Opcional)</label>
+                                    <input type="text" id="lancamentoNota" class="input-text" placeholder="Ex: NF-e 12345" maxlength="100">
+                                </div>
+                            </div>
+
+                            <div class="col-span-full pt-2 flex justify-end">
+                                <button type="submit" class="btn-primary" id="btnSalvarLancamento">
+                                    <i class="fas fa-plus-circle mr-2"></i> Salvar Lançamento
+                                </button>
+                            </div>
+                            <input type="hidden" id="lancamentoIdHidden">
+                        </form>
                     </div>
                 </div>
 
-                <!-- Lista de Lançamentos -->
+                <!-- CARD FILTROS E TOTALIZADORES (AGORA EXPANSÍVEL NOVAMENTE) -->
+                <div class="card expandable collapsed p-4 md:p-6">
+                    <!-- HEADER: Clicável para expandir/recolher -->
+                    <div class="exp-header">
+                        <h3 class="text-xl font-semibold">Filtros e Totalizadores</h3>
+                        <!-- ÍCONE: Seta que gira ao expandir -->
+                        <i class="fas fa-chevron-down arrow text-xl text-[var(--color-secondary)]"></i>
+                    </div>
+                    
+                    <!-- BODY: Onde o conteúdo original vai e que será expandido/recolhido -->
+                    <div class="exp-body">
+                        <!-- Conteúdo dos filtros e totalizadores -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                            <!-- DATA INÍCIO e DATA FIM (LADO A LADO MOBILE) -->
+                            <div class="col-span-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4 input-group">
+                                <div class="col-span-1 form-field">
+                                    <label for="filtroDataInicio" class="block text-sm font-medium text-gray-700 mb-1">Data Início</label>
+                                    <input type="text" id="filtroDataInicio" class="date-masked-input input-text" placeholder="dd/mm/aaaa" maxlength="10">
+                                </div>
+                                <div class="col-span-1 form-field">
+                                    <label for="filtroDataFim" class="block text-sm font-medium text-gray-700 mb-1">Data Fim</label>
+                                    <input type="text" id="filtroDataFim" class="date-masked-input input-text" placeholder="dd/mm/aaaa" maxlength="10">
+                                </div>
+                            </div>
+
+                            <!-- CATEGORIA e CONTA (LADO A LADO MOBILE) -->
+                             <div class="col-span-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4 input-group">
+                                <div class="col-span-1 form-field">
+                                    <label for="filtroCategoria" class="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
+                                    <select id="filtroCategoria" class="select-input">
+                                        <option value="">Todas as Categorias</option>
+                                    </select>
+                                </div>
+                                <div class="col-span-1 form-field">
+                                    <label for="filtroConta" class="block text-sm font-medium text-gray-700 mb-1">Conta</label>
+                                    <select id="filtroConta" class="select-input">
+                                        <option value="">Todas as Contas</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Totalizadores -->
+                        <div id="totalizadores" class="grid grid-cols-3 gap-4 text-center border-t pt-4 mt-4">
+                            <div class="p-3 rounded-xl bg-green-50">
+                                <p class="text-sm font-medium text-green-700">Entradas</p>
+                                <p id="totalEntradas" class="text-lg font-bold text-green-900">R$ 0,00</p>
+                            </div>
+                            <div class="p-3 rounded-xl bg-red-50">
+                                <p class="text-sm font-medium text-red-700">Saídas</p>
+                                <p id="totalSaidas" class="text-lg font-bold text-red-900">R$ 0,00</p>
+                            </div>
+                            <div class="p-3 rounded-xl bg-blue-50">
+                                <p class="text-sm font-medium text-blue-700">Saldo</p>
+                                <p id="saldoTotal" class="text-lg font-bold text-blue-900">R$ 0,00</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Lista de Lançamentos (Não é expansível, p-0 mantido) -->
                 <div class="card p-0 overflow-x-auto">
                     <!-- Tabela (Somente Desktop) -->
                     <table class="min-w-full compact-table" id="tblLancamentosTable">
@@ -510,6 +703,7 @@
 
             <!-- 2. Categorias -->
             <section id="categorias-page" class="page hidden space-y-6">
+                <!-- CARD CATEGORIAS (NÃO EXPANSÍVEL) -->
                 <div class="card">
                     <h2 class="text-2xl font-semibold mb-4 text-slate-800">Gestão de Categorias</h2>
                     <button id="btnNovaCategoria" class="btn-primary mb-6"><i class="fas fa-plus-circle mr-2"></i> Criar Categoria</button>
@@ -559,6 +753,7 @@
 
             <!-- 3. Conta Bancária -->
             <section id="contas-page" class="page hidden space-y-6">
+                <!-- CARD CONTAS (NÃO EXPANSÍVEL) -->
                 <div class="card">
                     <h2 class="text-2xl font-semibold mb-4 text-slate-800">Gestão de Contas Bancárias</h2>
                     <button id="btnNovaConta" class="btn-primary mb-6"><i class="fas fa-plus-circle mr-2"></i> Cadastrar Conta</button>
@@ -610,6 +805,7 @@
 
             <!-- 4. Conciliação Bancária (Relatório) -->
             <section id="conciliacao-page" class="page hidden space-y-6">
+                 <!-- CARD RELATÓRIO (NÃO EXPANSÍVEL) -->
                 <div class="card">
                     <h2 class="text-2xl font-semibold mb-4 text-slate-800">Relatório de Conciliação Bancária</h2>
 
@@ -677,7 +873,6 @@
                                     <td data-label="Sinal" class="text-center"></td>
                                     <td data-label="Saldo Acumulado" id="relSaldoAnterior" class="text-right">R$ 0,00</td>
                                 </tr>
-                                <!-- Lançamentos -->
                             </tbody>
                             <tfoot id="tblRelatorioFooter">
                                 <tr class="bg-blue-200 font-extrabold text-blue-900">
@@ -1634,7 +1829,7 @@
 
                     if (error) {
                         console.error("Erro Supabase:", error);
-                        showMessage(`Erro ao excluir conta: ${error.message}`, 'error');
+                        showMessage(`Erro ao excluir conta: ${deleteError.message}`, 'error');
                     } else {
                         showMessage('Conta excluída com sucesso.', 'success');
                         await renderAll(); // Recarrega dados após sucesso
@@ -1852,7 +2047,7 @@
             let saldoAnteriorRow = `
                 <tr class="bg-blue-50/50 font-bold">
                     <td data-label="Data"></td>
-                    <td data-label="Descrição" colspan="3">${contaId === 'ALL_ACCOUNTS' ? 'SALDO ACUMULADO INICIAL' : 'SALDO ANTERIOR'}</td>
+                    <td data-label="Descrição" colspan="3">SALDO ANTERIOR</td>
                     <td data-label="Sinal" class="text-center"></td>
                     <td data-label="Saldo Acumulado" id="relSaldoAnterior" class="text-right">${formatMoney(saldoAnterior)}</td>
                 </tr>
@@ -1945,8 +2140,46 @@
         // SETUP INICIAL
         // ====================================================================
 
+        /**
+         * Manipulador de evento que alterna o estado do card expansível.
+         * @param {Event} event O evento de clique no header.
+         */
+        const toggleCardCollapse = (event) => {
+            const header = event.currentTarget;
+            const card = header.closest(".expandable");
+            
+            if (!card) return;
+
+            // Alterna a classe 'collapsed' no card pai
+            card.classList.toggle("collapsed");
+
+            // Lógica para controle de max-height para transição suave
+            if (!card.classList.contains("collapsed")) {
+                // Se estiver expandindo, define uma altura grande o suficiente para a transição
+                card.style.maxHeight = '1000px'; 
+            } else {
+                // Se estiver recolhendo, define a altura do header para iniciar o colapso
+                // O CSS fará o restante da transição.
+                card.style.maxHeight = header.offsetHeight + 'px';
+            }
+        };
+
+        /**
+         * Aplica a lógica de expandir/recolher para todos os cards com a classe .expandable.
+         */
+        const setupExpandableCards = () => {
+            // Garante que a lógica de clique seja aplicada apenas aos elementos que possuem a classe '.expandable'
+            document.querySelectorAll(".expandable .exp-header").forEach(header => {
+                // Remove listener antigo para evitar duplicação caso seja chamado mais de uma vez
+                header.removeEventListener("click", toggleCardCollapse); 
+                // Adiciona o novo listener
+                header.addEventListener("click", toggleCardCollapse);
+            });
+        };
+
+
         const setupEvents = () => {
-            // Navegação
+            // NAVEGAÇÃO E EXPANSÍVEL
             document.getElementById('hamburger-btn').addEventListener('click', openDrawer);
             document.getElementById('close-drawer-btn').addEventListener('click', closeDrawer);
             document.getElementById('drawer-backdrop').addEventListener('click', closeDrawer);
@@ -1956,6 +2189,7 @@
                     changePage(e.currentTarget.dataset.page);
                 });
             });
+            setupExpandableCards(); // Inicializa o comportamento expansível/colapsável (que agora afeta os dois cards com a classe .expandable)
 
             // GESTÃO DE CATEGORIAS
             document.getElementById('btnNovaCategoria').addEventListener('click', () => openCategoriaForm());
