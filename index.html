@@ -50,7 +50,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Geração Financeira - Controle e Prestação de Contas</title>
+    <title>Gestão Financeira - Controle e Prestação de Contas</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Font Awesome CDN (Ícones) -->
@@ -60,11 +60,12 @@
     <!-- SUPABASE INTEGRATION POINT: Supabase Client Library -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        /* Configuração de Cores e Fontes (Tailwind customizado) */
+        /* Configuração de Cores e Fontes (Tailwind customizado) - PALETA ATICCA-LIKE (Deep Navy / Cyan) */
         :root {
-            --color-primary: #10B981; /* Esmeralda 500 */
-            --color-secondary: #059669; /* Esmeralda 600 */
-            --color-background: #F9FAFB; /* Gray 50 */
+            /* NOVA PALETA BASEADA NA IMAGEM: #141d34 (Fundo Principal), #fgb17a (Destaque/Accent) */
+            --color-primary: #141d34; /* Deep Blue/Navy - Fundo Principal */
+            --color-secondary: #fgb17a; /* Soft Orange - Cor de Destaque */
+            --color-background: #F8FAFC; /* Slate 50 - Light Background */
             --color-surface: #FFFFFF; /* White */
             --color-text-dark: #1F2937; /* Gray 800 */
             --color-text-light: #6B7280; /* Gray 500 */
@@ -80,17 +81,49 @@
         }
 
         /* Classes de utilidade forçada para elementos não-tailwind */
+        /* Ajuste de cores para o novo tema */
         .btn-primary {
-            @apply bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 px-4 rounded-2xl transition duration-200 shadow-md focus:outline-none focus:ring-4 focus:ring-emerald-500 focus:ring-opacity-50 w-full md:w-auto;
+            /* Usando a cor de destaque (Soft Orange) */
+            @apply bg-[var(--color-secondary)] hover:bg-[#eb9d6b] text-white font-bold py-3 px-4 rounded-2xl transition duration-200 shadow-lg focus:outline-none focus:ring-4 focus:ring-[var(--color-secondary)] focus:ring-opacity-50 w-full md:w-auto;
         }
         .btn-secondary {
             @apply bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-4 rounded-2xl transition duration-200 shadow-sm focus:outline-none focus:ring-4 focus:ring-gray-400 focus:ring-opacity-50 w-full md:w-auto;
         }
         .input-text, .select-input, .date-input {
-            @apply w-full p-3 border border-gray-300 rounded-xl focus:border-emerald-500 focus:ring-emerald-500 shadow-sm transition duration-150;
+            /* AJUSTE 1: Aumentar padding interno */
+            @apply w-full p-2 border border-gray-300 rounded-xl focus:border-[var(--color-secondary)] focus:ring-[var(--color-secondary)] shadow-sm transition duration-150;
+            padding: 8px 10px; /* Ajuste manual para padronizar 8-10px */
         }
         .card {
+            /* Sombra mais marcada para profundidade (Aticca-like) */
             @apply bg-white p-6 rounded-2xl shadow-xl transition duration-300 ease-in-out;
+        }
+        .nav-link.active-link {
+            @apply bg-slate-100 text-slate-800 font-semibold;
+        }
+        /* Ajuste para ícones do menu lateral */
+        .nav-link i {
+            /* Garante que os ícones fiquem com a cor principal (Navy) por padrão */
+            color: var(--color-primary);
+        }
+        .nav-link.active-link i {
+            /* Ícone de link ativo com a cor de destaque (Soft Orange) */
+            color: var(--color-secondary); 
+        }
+        /* Título do menu lateral */
+        #side-drawer h2 {
+            color: var(--color-primary);
+        }
+        
+        /* CORREÇÃO AQUI: Posiciona o contêiner de mensagens na parte inferior direita */
+        #message-container {
+            position: fixed;
+            bottom: 1rem; /* 16px da parte inferior */
+            right: 1rem; /* 16px da direita */
+            z-index: 50;
+            space-y: 2;
+            max-width: 384px; /* max-w-sm */
+            width: 90%; /* Ajuste para mobile */
         }
 
         /* Estilo Específico para o Drawer (Menu Lateral) */
@@ -126,9 +159,14 @@
                 width: 280px;
                 height: 100vh;
                 top: 0;
+                /* Adiciona uma linha sutil para separar do conteúdo principal */
+                border-right: 1px solid #E2E8F0; /* Slate 200 */
             }
             #main-content {
                 margin-left: 280px;
+                /* Garante que o conteúdo principal use o padding completo */
+                padding-left: 2rem;
+                padding-right: 2rem;
             }
             #drawer-backdrop, #hamburger-btn {
                 display: none;
@@ -136,9 +174,72 @@
             .desktop-only {
                 display: block;
             }
+
+            /* CORREÇÃO 2: Alinhamento da Coluna "Nº Nota" no Desktop */
+            .compact-table thead th, .compact-table tbody td {
+                /* Remove estilos de largura inline no HTML para usar o CSS fixo */
+                width: auto;
+            }
+            
+            /* Define as larguras fixas no desktop para todas as colunas */
+            .compact-table th:nth-child(1), .compact-table td:nth-child(1) { width: 10%; } /* Data */
+            .compact-table th:nth-child(2), .compact-table td:nth-child(2) { width: 30%; } /* Descrição */
+            .compact-table th:nth-child(3), .compact-table td:nth-child(3) { width: 15%; } /* Categoria */
+            
+            /* Alinha Coluna Nº Nota */
+            .compact-table th:nth-child(4) {
+                 width: 12%; 
+                 /* Garante que o texto "Nº Nota" fique em uma linha */
+                 white-space: nowrap; 
+            }
+            .compact-table td:nth-child(4) {
+                 width: 12%; 
+            }
+            
+            .compact-table th:nth-child(5), .compact-table td:nth-child(5) { width: 15%; } /* Conta */
+            .compact-table th:nth-child(6), .compact-table td:nth-child(6) { width: 10%; } /* Valor */
+            .compact-table th:nth-child(7), .compact-table td:nth-child(7) { width: 8%; } /* Ações */
+            
+             /* Garante o fundo e cor para TODOS os cabeçalhos */
+            .compact-table thead th {
+                background-color: #F3F4F6; /* grey-100 */
+                color: var(--color-text-light);
+                border-bottom: 1px solid #E5E7EB;
+            }
+             /* Oculta as tabelas no desktop */
+            #tblLancamentosTable {
+                display: table;
+            }
+             /* Exibe a lista de cards no mobile */
+            #tblLancamentosCardList {
+                display: none;
+            }
         }
 
-        /* Estilização da tabela compacta de lançamentos */
+        /* Ajustes Mobile-First */
+        /* No mobile, o main content precisa de padding suficiente */
+        @media (max-width: 1023px) {
+             #main-content {
+                padding: 1rem; /* Padding reduzido para telas pequenas */
+             }
+             /* Alinha os botões no formulário de lançamento para o centro/coluna */
+             #formLancamento > div:last-child {
+                justify-content: center !important;
+             }
+             /* Esconde a tabela no mobile */
+             #tblLancamentosTable {
+                display: none;
+             }
+             /* Exibe a lista de cards no mobile */
+             #tblLancamentosCardList {
+                display: flex; /* Transforma em lista vertical */
+                flex-direction: column;
+                gap: 0.75rem; /* Espaçamento entre os cards */
+             }
+        }
+
+
+        /* Estilização da tabela compacta de lançamentos (APLICÁVEL APENAS ÀS TABELAS DE CATEGORIAS/CONTAS/RELATÓRIO) */
         .compact-table th, .compact-table td {
             padding: 1rem 0.75rem;
             text-align: left;
@@ -149,22 +250,31 @@
             color: var(--color-text-light);
             background-color: #F3F4F6; /* gray-100 */
         }
-        /* Responsividade da tabela em Mobile: Esconder colunas menos essenciais */
+        /* Responsividade da tabela em Mobile: APERFEIÇOAMENTO DO DISPLAY */
         @media (max-width: 640px) {
+            .compact-table {
+                width: 100%;
+            }
             .compact-table thead, .compact-table tfoot {
                 display: none;
+            }
+            .compact-table tbody {
+                display: block;
+                width: 100%;
             }
             .compact-table tbody tr {
                 display: block;
                 margin-bottom: 1rem;
                 border: 1px solid #D1D5DB; /* gray-300 */
                 border-radius: 12px;
+                padding: 0.5rem; /* Adiciona padding para melhor visualização */
             }
             .compact-table td {
                 display: block;
                 text-align: right !important;
                 padding: 0.5rem 1rem;
                 position: relative;
+                min-height: 2.5rem; /* Garante que o conteúdo não se sobreponha verticalmente */
             }
             .compact-table td::before {
                 content: attr(data-label);
@@ -172,14 +282,48 @@
                 left: 1rem;
                 font-weight: 600;
                 color: var(--color-text-light);
+                /* CORREÇÃO: Força o rótulo a ficar à esquerda sem interferir no valor */
+                width: 50%;
+                text-align: left;
             }
-            /* Alinhamento dos botões no mobile */
+            /* Garante que o valor fique à direita, sem colidir com o rótulo */
+            .compact-table td:not(:last-child) {
+                text-align: right !important;
+                padding-left: 50%; /* Libera espaço para o rótulo */
+            }
+
+            /* CORREÇÃO 1: Estilo específico para a célula de Ações (botões) */
             .compact-table td:last-child {
+                /* Garante que os botões fiquem em nova linha sob o rótulo 'Ações' */
                 text-align: left !important;
-                display: flex;
-                justify-content: flex-start;
+                display: block; /* Volta para block para empilhar o conteúdo */
                 gap: 0.5rem;
-                padding-top: 1rem;
+                padding-top: 2rem; /* Adiciona espaço para o rótulo */
+                padding-bottom: 0.5rem; 
+                min-height: auto; 
+            }
+            .compact-table td:last-child::before {
+                 /* Ajusta o rótulo "Ações" para o topo da célula */
+                 top: 0.5rem; 
+                 bottom: auto; 
+                 width: 100%; /* Permite o rótulo se expandir para evitar conflito com o flex */
+                 text-align: left;
+            }
+             /* Força os botões a ficarem em linha horizontal abaixo do rótulo */
+            .compact-table td:last-child > .flex {
+                display: flex;
+                flex-direction: row;
+                justify-content: flex-start;
+                margin-top: 0.5rem;
+            }
+            
+            /* Ajuste para células específicas no relatório de Conciliação (saldo, sinal) */
+            .compact-table #relSaldoAnterior, .compact-table #relSaldoFinal, .compact-table td.text-right {
+                /* Garante que os saldos e valores fiquem visíveis */
+                font-size: 1rem;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
             }
         }
     </style>
@@ -192,25 +336,26 @@
     <!-- Menu Lateral (Drawer) -->
     <aside id="side-drawer" class="fixed top-0 left-0 w-64 h-full bg-white shadow-2xl p-6 lg:shadow-none">
         <div class="flex justify-between items-center mb-10">
-            <h2 class="text-2xl font-extrabold text-emerald-600">Geração Financeira</h2>
+            <!-- ALTERAÇÃO 3: Renomear Sistema -->
+            <h2 class="text-2xl font-extrabold text-slate-800">Gestão Financeira</h2>
             <button id="close-drawer-btn" class="text-gray-500 hover:text-gray-800 lg:hidden">
                 <i class="fas fa-times text-2xl"></i>
             </button>
         </div>
         <nav class="space-y-4">
-            <a href="#" data-page="lancamentos" class="nav-link flex items-center p-3 rounded-xl text-lg font-medium text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 active-link">
+            <a href="#" data-page="lancamentos" class="nav-link flex items-center p-3 rounded-xl text-lg font-medium text-gray-700 hover:bg-slate-50 hover:text-slate-800 active-link">
                 <i class="fas fa-file-invoice-dollar w-6 mr-3"></i>
                 Lançar Receita/Despesa
             </a>
-            <a href="#" data-page="categorias" class="nav-link flex items-center p-3 rounded-xl text-lg font-medium text-gray-700 hover:bg-emerald-50 hover:text-emerald-700">
+            <a href="#" data-page="categorias" class="nav-link flex items-center p-3 rounded-xl text-lg font-medium text-gray-700 hover:bg-slate-50 hover:text-slate-800">
                 <i class="fas fa-tags w-6 mr-3"></i>
                 Categorias (C/D)
             </a>
-            <a href="#" data-page="contas" class="nav-link flex items-center p-3 rounded-xl text-lg font-medium text-gray-700 hover:bg-emerald-50 hover:text-emerald-700">
+            <a href="#" data-page="contas" class="nav-link flex items-center p-3 rounded-xl text-lg font-medium text-gray-700 hover:bg-slate-50 hover:text-slate-800">
                 <i class="fas fa-university w-6 mr-3"></i>
                 Conta Bancária
             </a>
-            <a href="#" data-page="conciliacao" class="nav-link flex items-center p-3 rounded-xl text-lg font-medium text-gray-700 hover:bg-emerald-50 hover:text-emerald-700">
+            <a href="#" data-page="conciliacao" class="nav-link flex items-center p-3 rounded-xl text-lg font-medium text-gray-700 hover:bg-slate-50 hover:text-slate-800">
                 <i class="fas fa-clipboard-check w-6 mr-3"></i>
                 Conciliação Bancária
             </a>
@@ -226,17 +371,20 @@
                 <button id="hamburger-btn" class="text-gray-600 hover:text-gray-800 p-2 mr-3 rounded-full lg:hidden">
                     <i class="fas fa-bars text-xl"></i>
                 </button>
-                <h1 id="page-title" class="text-xl font-bold text-gray-800 transition-opacity">Geração Financeira</h1>
+                 <!-- ALTERAÇÃO 3: Renomear Sistema -->
+                <h1 id="page-title" class="text-xl font-bold text-gray-800 transition-opacity">Gestão Financeira</h1>
             </div>
             <div class="flex items-center space-x-3">
-                <div class="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600">
+                <!-- Ícone de Usuário ajustado para a paleta Navy/Orange -->
+                <div class="w-8 h-8 bg-[var(--color-primary)] rounded-full flex items-center justify-center text-[var(--color-secondary)]">
                     <i class="fas fa-user"></i>
                 </div>
             </div>
         </header>
 
         <!-- Container de Mensagens (Toast/Inline) -->
-        <div id="message-container" class="fixed top-4 right-4 z-50 space-y-2 max-w-sm w-full">
+        <!-- ALTERADO: Para fixar na parte inferior direita -->
+        <div id="message-container" class="fixed bottom-4 right-4 z-50 space-y-2 max-w-sm w-full">
             <!-- Mensagens aparecerão aqui -->
         </div>
 
@@ -245,7 +393,7 @@
             <!-- 1. Lançar Receita/Despesa (Padrão) -->
             <section id="lancamentos-page" class="page hidden space-y-6">
                 <div class="card p-4 md:p-6">
-                    <h2 class="text-2xl font-semibold mb-4 text-emerald-600">Novo Lançamento</h2>
+                    <h2 class="text-2xl font-semibold mb-4 text-slate-800">Novo Lançamento</h2>
                     <form id="formLancamento" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         <div class="col-span-1">
                             <label for="lancamentoData" class="block text-sm font-medium text-gray-700 mb-1">Data * (dd/mm/aaaa)</label>
@@ -289,24 +437,25 @@
                 <!-- Filtros e Totalizadores -->
                 <div class="card">
                     <h3 class="text-xl font-semibold mb-4">Filtros e Totalizadores</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-                        <div>
+                    <!-- CORREÇÃO DE GRID: Força 1 coluna no mobile para Data Início/Fim -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                        <div class="col-span-1">
                             <label for="filtroDataInicio" class="block text-sm font-medium text-gray-700 mb-1">Data Início</label>
                             <!-- ALTERADO PARA TYPE="TEXT" e adicionado a classe 'date-masked-input' para aplicar máscara JS -->
                             <input type="text" id="filtroDataInicio" class="date-masked-input input-text" placeholder="dd/mm/aaaa" maxlength="10">
                         </div>
-                        <div>
+                        <div class="col-span-1">
                             <label for="filtroDataFim" class="block text-sm font-medium text-gray-700 mb-1">Data Fim</label>
                             <!-- ALTERADO PARA TYPE="TEXT" e adicionado a classe 'date-masked-input' para aplicar máscara JS -->
                             <input type="text" id="filtroDataFim" class="date-masked-input input-text" placeholder="dd/mm/aaaa" maxlength="10">
                         </div>
-                        <div>
+                        <div class="col-span-1">
                             <label for="filtroCategoria" class="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
                             <select id="filtroCategoria" class="select-input">
                                 <option value="">Todas as Categorias</option>
                             </select>
                         </div>
-                        <div>
+                        <div class="col-span-1">
                             <label for="filtroConta" class="block text-sm font-medium text-gray-700 mb-1">Conta</label>
                             <select id="filtroConta" class="select-input">
                                 <option value="">Todas as Contas</option>
@@ -333,22 +482,28 @@
 
                 <!-- Lista de Lançamentos -->
                 <div class="card p-0 overflow-x-auto">
-                    <table class="min-w-full compact-table">
+                    <!-- Tabela (Somente Desktop) -->
+                    <table class="min-w-full compact-table" id="tblLancamentosTable">
                         <thead>
                             <tr>
-                                <th class="w-1/12">Data</th>
-                                <th class="w-3/12">Descrição</th>
-                                <th class="w-2/12">Categoria</th>
-                                <th class="w-1/12 desktop-only">Nº Nota</th>
-                                <th class="w-2/12">Conta</th>
-                                <th class="w-1/12 text-right">Valor</th>
-                                <th class="w-1/12 text-center">Ações</th>
+                                <th class="w-[10%]">Data</th>
+                                <th class="w-[30%]">Descrição</th>
+                                <th class="w-[15%]">Categoria</th>
+                                <!-- CORRIGIDO: Largura ajustada para 12% para fechar 100% com os novos valores. -->
+                                <th class="w-[12%] desktop-only whitespace-nowrap">Nº Nota</th> 
+                                <th class="w-[15%]">Conta</th>
+                                <th class="w-[10%] text-right">Valor</th>
+                                <th class="w-[8%] text-center">Ações</th>
                             </tr>
                         </thead>
-                        <tbody id="tblLancamentos">
-                            <!-- Linhas de lançamento serão injetadas aqui -->
+                        <tbody id="tblLancamentosTableBody">
+                            <!-- Linhas de lançamento serão injetadas aqui (Apenas Desktop) -->
                         </tbody>
                     </table>
+                     <!-- Lista de Cards (Somente Mobile) -->
+                    <div id="tblLancamentosCardList" class="flex flex-col gap-3 p-4">
+                         <!-- Cards de lançamento serão injetados aqui (Apenas Mobile) -->
+                    </div>
                     <p id="noLancamentosMsg" class="text-center p-6 text-gray-500 hidden">Nenhum lançamento encontrado para os filtros aplicados.</p>
                 </div>
             </section>
@@ -356,7 +511,7 @@
             <!-- 2. Categorias -->
             <section id="categorias-page" class="page hidden space-y-6">
                 <div class="card">
-                    <h2 class="text-2xl font-semibold mb-4 text-emerald-600">Gestão de Categorias</h2>
+                    <h2 class="text-2xl font-semibold mb-4 text-slate-800">Gestão de Categorias</h2>
                     <button id="btnNovaCategoria" class="btn-primary mb-6"><i class="fas fa-plus-circle mr-2"></i> Criar Categoria</button>
 
                     <!-- Formulário/Modal de Categoria (Inicialmente oculto/inline) -->
@@ -405,7 +560,7 @@
             <!-- 3. Conta Bancária -->
             <section id="contas-page" class="page hidden space-y-6">
                 <div class="card">
-                    <h2 class="text-2xl font-semibold mb-4 text-emerald-600">Gestão de Contas Bancárias</h2>
+                    <h2 class="text-2xl font-semibold mb-4 text-slate-800">Gestão de Contas Bancárias</h2>
                     <button id="btnNovaConta" class="btn-primary mb-6"><i class="fas fa-plus-circle mr-2"></i> Cadastrar Conta</button>
 
                     <!-- Formulário/Modal de Conta (Inicialmente oculto/inline) -->
@@ -456,10 +611,11 @@
             <!-- 4. Conciliação Bancária (Relatório) -->
             <section id="conciliacao-page" class="page hidden space-y-6">
                 <div class="card">
-                    <h2 class="text-2xl font-semibold mb-4 text-emerald-600">Relatório de Conciliação Bancária</h2>
+                    <h2 class="text-2xl font-semibold mb-4 text-slate-800">Relatório de Conciliação Bancária</h2>
 
                     <!-- Filtros de Relatório -->
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end mb-6 border-b pb-4">
+                    <!-- CORREÇÃO DE GRID: Força 1 coluna no mobile para Data Início/Fim -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end mb-6 border-b pb-4">
                         <div class="col-span-1">
                             <label for="relDataInicio" class="block text-sm font-medium text-gray-700 mb-1">Data Início * (dd/mm/aaaa)</label>
                             <!-- ALTERADO PARA TYPE="TEXT" e adicionado a classe 'date-masked-input' para aplicar máscara JS -->
@@ -474,9 +630,10 @@
                             <label for="relContaId" class="block text-sm font-medium text-gray-700 mb-1">Conta Bancária *</label>
                             <select id="relContaId" class="select-input" required>
                                 <option value="">Selecione a Conta</option>
+                                <option value="ALL_ACCOUNTS">Todas as Contas</option> <!-- Adicionado para permitir selecionar todas -->
                             </select>
                         </div>
-                        <div class="col-span-1 flex justify-end md:justify-start">
+                        <div class="col-span-1 flex justify-end md:justify-start pt-4 md:pt-0">
                             <button id="btnGerarRelatorio" class="btn-primary disabled:opacity-50 disabled:cursor-not-allowed" disabled>
                                 <i class="fas fa-chart-line mr-2"></i> Gerar Relatório
                             </button>
@@ -494,7 +651,7 @@
                     <!-- Conteúdo do Relatório para PDF -->
                     <div id="relatorioContent" class="p-4 md:p-6">
                         <header class="mb-6 border-b pb-3">
-                            <h4 class="text-lg font-bold text-emerald-700">Relatório de Conciliação Bancária</h4>
+                            <h4 class="text-lg font-bold text-slate-800">Relatório de Conciliação Bancária</h4>
                             <p class="text-sm">Conta: <span id="relContaNome"></span></p>
                             <p class="text-sm">Período: <span id="relPeriodo"></span></p>
                             <p class="text-sm">Data de Geração: <span id="relDataGeracao"></span></p>
@@ -600,7 +757,7 @@
         const showMessage = (message, type) => {
             const container = document.getElementById('message-container');
             const colorMap = {
-                success: 'bg-emerald-500 border-emerald-700',
+                success: 'bg-green-500 border-green-700',
                 error: 'bg-red-500 border-red-700',
                 info: 'bg-blue-500 border-blue-700',
             };
@@ -902,15 +1059,27 @@
                     contas: 'Contas Bancárias',
                     conciliacao: 'Relatório de Conciliação Bancária'
                 };
-                document.getElementById('page-title').textContent = titleMap[pageId] || 'Geração Financeira';
+                // ALTERAÇÃO 3: Usar o nome visual "Gestão Financeira" no título, preservando o resto
+                let visualTitle = titleMap[pageId] || 'Gestão Financeira';
+                if (pageId === 'lancamentos') {
+                    visualTitle = 'Gestão Financeira'; 
+                } else if (pageId === 'categorias') {
+                     visualTitle = 'Gestão de Categorias (C/D)'; 
+                } else if (pageId === 'contas') {
+                     visualTitle = 'Gestão de Contas Bancárias'; 
+                } else if (pageId === 'conciliacao') {
+                     visualTitle = 'Relatório de Conciliação Bancária'; 
+                }
+                document.getElementById('page-title').textContent = visualTitle;
+
                 currentPage = pageId;
             }
 
             // Atualiza o estado visual do menu lateral
             document.querySelectorAll('.nav-link').forEach(link => {
-                link.classList.remove('active-link', 'bg-emerald-100', 'text-emerald-800');
+                link.classList.remove('active-link', 'bg-slate-100', 'text-slate-800');
                 if (link.dataset.page === pageId) {
-                    link.classList.add('active-link', 'bg-emerald-100', 'text-emerald-800');
+                    link.classList.add('active-link', 'bg-slate-100', 'text-slate-800');
                 }
             });
 
@@ -944,7 +1113,13 @@
 
             accSelects.forEach(select => {
                 const isFilter = select.id.startsWith('filtro') || select.id.startsWith('rel');
-                select.innerHTML = `<option value="">${isFilter ? 'Todas as Contas' : 'Selecione a Conta'}</option>`;
+                // Adiciona a opção "Todas as Contas" apenas nos filtros de relatórios
+                if (isFilter && select.id === 'relContaId') {
+                    select.innerHTML = `<option value="">Selecione a Conta</option><option value="ALL_ACCOUNTS">Todas as Contas</option>`;
+                } else {
+                     select.innerHTML = `<option value="">${isFilter ? 'Todas as Contas' : 'Selecione a Conta'}</option>`;
+                }
+
                 state.contas.sort((a, b) => a.nome.localeCompare(b.nome)).forEach(acc => {
                     const option = document.createElement('option');
                     option.value = acc.id;
@@ -1007,8 +1182,12 @@
          * Renderiza a lista de lançamentos com filtros e totalizadores.
          */
         const renderLancamentos = () => {
-            const tblBody = document.getElementById('tblLancamentos');
-            tblBody.innerHTML = ''; // Limpa a lista
+            const tblBodyDesktop = document.getElementById('tblLancamentosTableBody');
+            const cardListMobile = document.getElementById('tblLancamentosCardList');
+            
+            tblBodyDesktop.innerHTML = ''; // Limpa a lista da tabela desktop
+            cardListMobile.innerHTML = ''; // Limpa a lista de cards mobile
+            
             const noMsg = document.getElementById('noLancamentosMsg');
 
             // Coleta filtros (as datas e valores estão em BR, mas os filtros não precisam de conversão imediata, apenas ao filtrar)
@@ -1060,22 +1239,53 @@
 
                 const tipo = categoria ? (categoria.tipo === 'CREDITO' ? 'Receita' : 'Despesa') : 'Sem Cat.';
                 const typeClass = categoria ? (categoria.tipo === 'CREDITO' ? 'text-green-600 font-bold' : 'text-red-600 font-bold') : 'text-gray-500';
+                
+                const valorFormatado = formatMoney(lancamento.valor);
+                const dataBr = convertDateIsoToBr(lancamento.data);
+                const catNome = sanitizeHtml(categoria?.nome || 'Não Encontrada');
+                const accNome = sanitizeHtml(conta?.nome || 'Não Encontrada');
+                const desc = sanitizeHtml(lancamento.descricao);
+                const nota = sanitizeHtml(lancamento.numeroNota);
 
+                /* --- RENDERIZAÇÃO DESKTOP (TABELA) --- */
                 const row = document.createElement('tr');
                 row.className = 'hover:bg-gray-50 transition-colors';
                 row.innerHTML = `
-                    <td data-label="Data">${convertDateIsoToBr(lancamento.data)}</td>
-                    <td data-label="Descrição" class="truncate max-w-xs">${sanitizeHtml(lancamento.descricao)}</td>
-                    <td data-label="Categoria">${sanitizeHtml(categoria?.nome || 'Não Encontrada')} (${tipo.charAt(0)})</td>
-                    <td data-label="Nº Nota" class="desktop-only truncate max-w-xs">${sanitizeHtml(lancamento.numeroNota)}</td>
-                    <td data-label="Conta">${sanitizeHtml(conta?.nome || 'Não Encontrada')}</td>
-                    <td data-label="Valor" class="text-right ${typeClass}">${formatMoney(lancamento.valor)}</td>
-                    <td data-label="Ações" class="flex items-center justify-center space-x-2">
-                        <button onclick="editLancamento('${lancamento.id}')" class="text-blue-500 hover:text-blue-700 p-2 rounded-full"><i class="fas fa-edit"></i></button>
-                        <button onclick="deleteLancamento('${lancamento.id}')" class="text-red-500 hover:text-red-700 p-2 rounded-full"><i class="fas fa-trash"></i></button>
+                    <td>${dataBr}</td>
+                    <td class="truncate max-w-xs">${desc}</td>
+                    <td>${catNome} (${tipo.charAt(0)})</td>
+                    <td class="desktop-only truncate max-w-xs">${nota}</td>
+                    <td>${accNome}</td>
+                    <td class="text-right ${typeClass}">${valorFormatado}</td>
+                    <td class="text-center">
+                        <div class="flex items-center justify-center space-x-2">
+                            <button onclick="editLancamento('${lancamento.id}')" class="text-blue-500 hover:text-blue-700 p-2 rounded-full"><i class="fas fa-edit"></i></button>
+                            <button onclick="deleteLancamento('${lancamento.id}')" class="text-red-500 hover:text-red-700 p-2 rounded-full"><i class="fas fa-trash"></i></button>
+                        </div>
                     </td>
                 `;
-                tblBody.appendChild(row);
+                tblBodyDesktop.appendChild(row);
+
+                /* --- RENDERIZAÇÃO MOBILE (CARDS) --- */
+                const card = document.createElement('div');
+                card.className = `card p-4 shadow-md border-l-4 ${categoria.tipo === 'CREDITO' ? 'border-green-500' : 'border-red-500'}`;
+                card.innerHTML = `
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-sm font-medium text-gray-500">${dataBr}</span>
+                        <span class="text-lg ${typeClass}">${valorFormatado}</span>
+                    </div>
+                    <p class="text-base font-semibold truncate mb-1">${desc}</p>
+                    <div class="text-xs text-gray-500 space-y-1">
+                        <p><strong>Categoria:</strong> ${catNome} (${tipo})</p>
+                        <p><strong>Conta:</strong> ${accNome}</p>
+                        ${nota ? `<p><strong>Nº Nota:</strong> ${nota}</p>` : ''}
+                    </div>
+                    <div class="flex justify-end space-x-2 mt-3 pt-2 border-t">
+                         <button onclick="editLancamento('${lancamento.id}')" class="text-blue-500 hover:text-blue-700 px-3 py-1 rounded-md text-sm"><i class="fas fa-edit mr-1"></i> Editar</button>
+                        <button onclick="deleteLancamento('${lancamento.id}')" class="text-red-500 hover:text-red-700 px-3 py-1 rounded-md text-sm"><i class="fas fa-trash mr-1"></i> Excluir</button>
+                    </div>
+                `;
+                cardListMobile.appendChild(card);
             });
 
             // Atualiza totalizadores
@@ -1591,24 +1801,40 @@
             const dataInicioIso = convertDateBrToIso(dataInicioStrBr);
             const dataFimIso = convertDateBrToIso(dataFimStrBr);
 
+            // Validação de data, mas agora o contaId pode ser 'ALL_ACCOUNTS'
             if (!dataInicioIso || !dataFimIso || !contaId) {
                 showMessage('Preencha a Data Início, Data Fim e Conta Bancária e garanta que as datas estão no formato dd/mm/aaaa e são válidas.', 'error');
                 return;
             }
 
-            const conta = state.contas.find(c => c.id == contaId);
-            if (!conta) {
-                showMessage('Conta bancária não encontrada.', 'error');
-                return;
+            // Define a conta para o cabeçalho do relatório
+            let contaNome = 'Todas as Contas';
+            let conta = null;
+            if (contaId !== 'ALL_ACCOUNTS') {
+                 conta = state.contas.find(c => c.id == contaId);
+                 if (!conta) {
+                    showMessage('Conta bancária não encontrada.', 'error');
+                    return;
+                 }
+                 contaNome = conta.nome;
             }
 
-            // 1. Calcular Saldo Anterior (usa dataInicioIso)
-            let saldoAnterior = calculatePreviousBalance(contaId, dataInicioIso);
+            // 1. Calcular Saldo Anterior (Regra: Saldo anterior só é aplicável a UMA conta específica)
+            // Se for 'Todas as Contas', o saldo anterior deve ser zero para fins de relatório.
+            let saldoAnterior = 0;
+            if (contaId !== 'ALL_ACCOUNTS') {
+                 saldoAnterior = calculatePreviousBalance(contaId, dataInicioIso);
+            }
             let saldoAtualAcumulado = saldoAnterior;
+
 
             // 2. Filtrar Lançamentos no Período (inclusivo, usa dataIso)
             const lancamentosPeriodo = state.lancamentos
-                .filter(l => l.contaId == contaId && l.data >= dataInicioIso && l.data <= dataFimIso)
+                .filter(l => {
+                    const passDate = l.data >= dataInicioIso && l.data <= dataFimIso;
+                    const passAccount = (contaId === 'ALL_ACCOUNTS' || l.contaId == contaId);
+                    return passDate && passAccount;
+                })
                 .sort((a, b) => {
                     // Ordenação: Data Ascendente (ISO), depois Data de Criação Ascendente
                     if (a.data !== b.data) {
@@ -1618,18 +1844,21 @@
                 });
 
             // 3. Renderizar Cabeçalho e Saldo Anterior
-            document.getElementById('relContaNome').textContent = sanitizeHtml(conta.nome);
+            document.getElementById('relContaNome').textContent = sanitizeHtml(contaNome);
             document.getElementById('relPeriodo').textContent = `${dataInicioStrBr} a ${dataFimStrBr}`; // Exibe em BR
             document.getElementById('relDataGeracao').textContent = new Date().toLocaleDateString('pt-BR');
 
-            tblBody.innerHTML = `
+            // Renderiza o Saldo Anterior apenas se não for "Todas as Contas"
+            let saldoAnteriorRow = `
                 <tr class="bg-blue-50/50 font-bold">
                     <td data-label="Data"></td>
-                    <td data-label="Descrição" colspan="3">SALDO ANTERIOR</td>
+                    <td data-label="Descrição" colspan="3">${contaId === 'ALL_ACCOUNTS' ? 'SALDO ACUMULADO INICIAL' : 'SALDO ANTERIOR'}</td>
                     <td data-label="Sinal" class="text-center"></td>
                     <td data-label="Saldo Acumulado" id="relSaldoAnterior" class="text-right">${formatMoney(saldoAnterior)}</td>
                 </tr>
             `;
+            tblBody.innerHTML = saldoAnteriorRow;
+
 
             // 4. Renderizar Lançamentos
             if (lancamentosPeriodo.length === 0) {
@@ -1805,15 +2034,18 @@
             document.getElementById('btnGerarRelatorio').addEventListener('click', generateRelatorio);
             document.getElementById('btnExportarPDF').addEventListener('click', exportRelatorioPDF);
 
-            // Validação de filtros de conciliação para habilitar o botão
+            // ALTERAÇÃO 2: Validação de filtros de conciliação para habilitar o botão
             document.querySelectorAll('#relDataInicio, #relDataFim, #relContaId').forEach(el => {
                 el.addEventListener('change', () => {
-                    // Usamos a função de conversão/validação para verificar se as datas estão corretas e se a conta foi selecionada
+                    // Usamos a função de conversão/validação para verificar se as datas estão corretas
                     const inicioValid = convertDateBrToIso(document.getElementById('relDataInicio').value);
                     const fimValid = convertDateBrToIso(document.getElementById('relDataFim').value);
                     const conta = document.getElementById('relContaId').value;
                     
-                    document.getElementById('btnGerarRelatorio').disabled = !(inicioValid && fimValid && conta);
+                    // O botão deve ser habilitado se Data Início E Data Fim forem válidos E a Conta for preenchida (incluindo 'ALL_ACCOUNTS')
+                    const isContaValid = conta && (conta !== 'Selecione a Conta');
+                    
+                    document.getElementById('btnGerarRelatorio').disabled = !(inicioValid && fimValid && isContaValid);
                 });
             });
 
