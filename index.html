@@ -174,7 +174,7 @@
             color: var(--color-text-light); /* Rótulos mobile cinzas */
         }
 
-        /* Contêiner de mensagens (mantido na parte inferior) */
+        /* Contêiner de mensagens (Toast/Inline) */
         #message-container {
             position: fixed;
             bottom: 1rem; /* 16px da parte inferior */
@@ -484,6 +484,11 @@
         /* Fixa o padding vertical do card no estado EXPANDIDO, onde o JS define max-height: 1000px */
         .expandable:not(.collapsed) {
             max-height: 1000px; /* Grande o suficiente para a maioria dos conteúdos, para dar a ilusão de altura automática */
+        }
+        
+        /* Estilo para o rodapé de status (NOVO) */
+        #keep-alive-status-container {
+            @apply fixed bottom-0 left-0 w-full bg-gray-50 p-2 text-xs text-gray-500 border-t border-gray-200 text-center z-50;
         }
     </style>
 </head>
@@ -887,6 +892,11 @@
             </section>
         </div>
     </main>
+    
+    <!-- NOVO ELEMENTO: Rodapé para Status do Keep-Alive -->
+    <footer id="keep-alive-status-container">
+        <p id="keep-alive-status" class="text-xs text-gray-500">Status Keep-Alive Supabase: Inicializando...</p>
+    </footer>
 
     <script>
         // ====================================================================
@@ -2177,6 +2187,89 @@
             });
         };
 
+        // ====================================================================
+        // SUPABASE KEEP ALIVE (APRIMORADO PARA MOSTRAR STATUS)
+        // ====================================================================
+        /**
+         * Atualiza o elemento de status na tela com a última hora de execução.
+         * @param {string} statusMsg Mensagem para exibir.
+         * @param {boolean} success Indica se a última tentativa foi bem-sucedida.
+         */
+        const updateKeepAliveStatus = (statusMsg, success = false) => {
+            const statusElement = document.getElementById('keep-alive-status');
+            if (statusElement) {
+                statusElement.textContent = statusMsg;
+                // Muda a cor do texto para indicar sucesso ou aviso
+                statusElement.classList.remove('text-red-500', 'text-green-600', 'text-gray-500');
+                if (success) {
+                    statusElement.classList.add('text-green-600', 'font-semibold');
+                } else if (statusMsg.includes('Falha')) {
+                    statusElement.classList.add('text-red-500', 'font-semibold');
+                } else {
+                    statusElement.classList.add('text-gray-500');
+                }
+            }
+        };
+        
+        /**
+         * Executa uma consulta leve para manter o banco de dados Supabase ativo
+         * (funciona apenas enquanto o aplicativo estiver aberto no navegador).
+         * Ele só executa a consulta se a última execução foi há mais de 24 horas.
+         */
+        const supabaseKeepAlive = async () => {
+            const lastExecution = localStorage.getItem('supabase_keep_alive_time');
+            const now = Date.now();
+            const twentyFourHours = 24 * 60 * 60 * 1000; 
+            const statusElement = document.getElementById('keep-alive-status');
+            
+            // 1. Atualizar status de última execução (se houver)
+            if (lastExecution) {
+                const lastDate = new Date(parseInt(lastExecution, 10)).toLocaleString('pt-BR');
+                const nextRunTime = parseInt(lastExecution, 10) + twentyFourHours;
+                const remainingTime = nextRunTime - now;
+                
+                let remainingHours = Math.floor(remainingTime / 3600000);
+                let remainingMinutes = Math.floor((remainingTime % 3600000) / 60000);
+
+                let statusMsg = `Última Atividade (Keep-Alive): ${lastDate}. Próxima verificação: `;
+                
+                if (remainingTime > 0) {
+                     statusMsg += `${remainingHours}h ${remainingMinutes}m.`;
+                     updateKeepAliveStatus(statusMsg);
+                     // Se ainda não deu 24h, apenas atualiza o status e sai
+                     return;
+                }
+                
+                // Se a hora de rodar passou, continua para a execução
+                updateKeepAliveStatus("Executando Keep-Alive...");
+            } else {
+                 updateKeepAliveStatus("Keep-Alive: Nunca executado. Executando agora...");
+            }
+            
+            // 2. Execução da consulta Keep-Alive (se for hora ou primeira vez)
+            try {
+                // A função select_one deve ter sido criada no painel SQL do Supabase
+                const { error } = await supabase.rpc('select_one');
+
+                if (error) {
+                    console.warn(`[Supabase Keep-Alive] Falha na consulta de manutenção: ${error.message}`);
+                    updateKeepAliveStatus(`Falha ao executar Keep-Alive (verifique função 'select_one'). Última Atividade: ${lastExecution ? new Date(parseInt(lastExecution, 10)).toLocaleString('pt-BR') : 'N/A'}.`, false);
+                    return;
+                }
+                
+                // 3. Sucesso: Atualiza o horário e o status
+                const newExecutionTime = Date.now();
+                localStorage.setItem('supabase_keep_alive_time', newExecutionTime.toString());
+                
+                const newDate = new Date(newExecutionTime).toLocaleString('pt-BR');
+                updateKeepAliveStatus(`Keep-Alive Supabase: Sucesso! Última Atividade: ${newDate}.`, true);
+                showMessage('Keep-Alive Supabase executado. O contador de inatividade foi resetado.', 'info');
+
+            } catch (e) {
+                console.error("[Supabase Keep-Alive] Erro ao tentar se comunicar com o Supabase:", e);
+                updateKeepAliveStatus(`Falha crítica de comunicação com o Supabase. Verifique a chave API.`, false);
+            }
+        };
 
         const setupEvents = () => {
             // NAVEGAÇÃO E EXPANSÍVEL
@@ -2282,6 +2375,11 @@
                     document.getElementById('btnGerarRelatorio').disabled = !(inicioValid && fimValid && isContaValid);
                 });
             });
+            
+            // EXECUTA O KEEP ALIVE UMA VEZ AO INICIAR
+            supabaseKeepAlive();
+            // AGENDA O KEEP ALIVE PARA EXECUTAR A CADA 24 HORAS
+            setInterval(supabaseKeepAlive, 24 * 60 * 60 * 1000);
 
         };
 
