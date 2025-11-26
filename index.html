@@ -1,0 +1,1847 @@
+<!--
+    ================================================================================
+    README - SISTEMA DE CONTROLE FINANCEIRO E PRESTAÇÃO DE CONTAS
+    ================================================================================
+
+    OBJETIVO:
+    Este arquivo HTML único (Single-File App) implementa um sistema web responsivo
+    (mobile-first) para gestão financeira pessoal/empresarial, AGORA COM INTEGRAÇÃO
+    AO SUPABASE.
+
+    TECNOLOGIAS:
+    - HTML5: Estrutura.
+    - Tailwind CSS (CDN): Estilização moderna e responsiva.
+    - Font Awesome (CDN): Ícones.
+    - html2pdf.js (CDN): Geração de relatórios PDF.
+    - Supabase Client (CDN): Persistência de dados (Backend).
+    - JavaScript (Vanilla): Toda a lógica funcional.
+
+    PERSISTÊNCIA DE DADOS:
+    Os dados agora são persistidos no Supabase. O localStorage foi removido.
+
+    COMO CONFIGURAR O SUPABASE:
+    1. Crie um novo projeto no Supabase.
+    2. No painel "Settings" -> "API", obtenha a URL e a Anon Key.
+    3. Substitua os PLACEHOLDERS nas variáveis `supabaseUrl` e `supabaseAnonKey` no <script>.
+    4. CRIE AS TABELAS usando o script SQL (Canvas "Supabase Schema" document).
+    5. Certifique-se de que as políticas de RLS (Row-Level Security) permitam operações de leitura e escrita.
+
+    COMO TESTAR:
+    1. Substitua as chaves do Supabase abaixo.
+    2. Salve este conteúdo como 'index.html'.
+    3. Abra o arquivo no seu navegador.
+    4. Crie Categoria, cadastre Conta e faça Lançamentos. Os dados devem aparecer no seu painel Supabase.
+    5. Teste o Relatório de Conciliação e a exportação para PDF.
+    6. Redimensione a janela do navegador para testar a responsividade (especialmente mobile).
+
+    COMO LIMPAR DADOS:
+    Limpe os dados diretamente no painel de controle do Supabase.
+
+    PONTO DE INTEGRAÇÃO COM BACKEND (API/DB):
+    As operações CRUD agora usam o cliente Supabase. Caso queira migrar para outro
+    backend (ex: Firebase ou uma API REST própria), você deve reescrever as
+    funções CRUD (`saveCategoria`, `deleteConta`, `saveLancamento`, etc.) e a função
+    `loadData` para usar esse novo serviço.
+
+    ================================================================================
+-->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geração Financeira - Controle e Prestação de Contas</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome CDN (Ícones) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <!-- html2pdf.js CDN (Para exportação PDF) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <!-- SUPABASE INTEGRATION POINT: Supabase Client Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        /* Configuração de Cores e Fontes (Tailwind customizado) */
+        :root {
+            --color-primary: #10B981; /* Esmeralda 500 */
+            --color-secondary: #059669; /* Esmeralda 600 */
+            --color-background: #F9FAFB; /* Gray 50 */
+            --color-surface: #FFFFFF; /* White */
+            --color-text-dark: #1F2937; /* Gray 800 */
+            --color-text-light: #6B7280; /* Gray 500 */
+            --font-family: 'Inter', sans-serif;
+        }
+
+        /* Estilos Globais */
+        body {
+            font-family: var(--font-family);
+            background-color: var(--color-background);
+            color: var(--color-text-dark);
+            -webkit-tap-highlight-color: transparent; /* Melhor toque em mobile */
+        }
+
+        /* Classes de utilidade forçada para elementos não-tailwind */
+        .btn-primary {
+            @apply bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 px-4 rounded-2xl transition duration-200 shadow-md focus:outline-none focus:ring-4 focus:ring-emerald-500 focus:ring-opacity-50 w-full md:w-auto;
+        }
+        .btn-secondary {
+            @apply bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-4 rounded-2xl transition duration-200 shadow-sm focus:outline-none focus:ring-4 focus:ring-gray-400 focus:ring-opacity-50 w-full md:w-auto;
+        }
+        .input-text, .select-input, .date-input {
+            @apply w-full p-3 border border-gray-300 rounded-xl focus:border-emerald-500 focus:ring-emerald-500 shadow-sm transition duration-150;
+        }
+        .card {
+            @apply bg-white p-6 rounded-2xl shadow-xl transition duration-300 ease-in-out;
+        }
+
+        /* Estilo Específico para o Drawer (Menu Lateral) */
+        #side-drawer {
+            transition: transform 0.3s ease-in-out;
+            transform: translateX(-100%);
+            z-index: 50; /* Acima de tudo */
+        }
+        #side-drawer.open {
+            transform: translateX(0);
+        }
+        #drawer-backdrop {
+            transition: opacity 0.3s ease-in-out;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 40;
+        }
+        #drawer-backdrop.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* Esconder no mobile por padrão (mobile-first) */
+        .desktop-only {
+            display: none;
+        }
+
+        /* Desktop: Mostrar drawer fixo e ajustar o main content */
+        @media (min-width: 1024px) {
+            #side-drawer {
+                transform: translateX(0) !important;
+                position: fixed;
+                width: 280px;
+                height: 100vh;
+                top: 0;
+            }
+            #main-content {
+                margin-left: 280px;
+            }
+            #drawer-backdrop, #hamburger-btn {
+                display: none;
+            }
+            .desktop-only {
+                display: block;
+            }
+        }
+
+        /* Estilização da tabela compacta de lançamentos */
+        .compact-table th, .compact-table td {
+            padding: 1rem 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #E5E7EB; /* gray-200 */
+        }
+        .compact-table th {
+            font-weight: 600;
+            color: var(--color-text-light);
+            background-color: #F3F4F6; /* gray-100 */
+        }
+        /* Responsividade da tabela em Mobile: Esconder colunas menos essenciais */
+        @media (max-width: 640px) {
+            .compact-table thead, .compact-table tfoot {
+                display: none;
+            }
+            .compact-table tbody tr {
+                display: block;
+                margin-bottom: 1rem;
+                border: 1px solid #D1D5DB; /* gray-300 */
+                border-radius: 12px;
+            }
+            .compact-table td {
+                display: block;
+                text-align: right !important;
+                padding: 0.5rem 1rem;
+                position: relative;
+            }
+            .compact-table td::before {
+                content: attr(data-label);
+                position: absolute;
+                left: 1rem;
+                font-weight: 600;
+                color: var(--color-text-light);
+            }
+            /* Alinhamento dos botões no mobile */
+            .compact-table td:last-child {
+                text-align: left !important;
+                display: flex;
+                justify-content: flex-start;
+                gap: 0.5rem;
+                padding-top: 1rem;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <!-- Backdrop para o Drawer em Mobile/Tablet -->
+    <div id="drawer-backdrop" class="fixed inset-0 bg-black bg-opacity-50 hidden transition-opacity lg:hidden"></div>
+
+    <!-- Menu Lateral (Drawer) -->
+    <aside id="side-drawer" class="fixed top-0 left-0 w-64 h-full bg-white shadow-2xl p-6 lg:shadow-none">
+        <div class="flex justify-between items-center mb-10">
+            <h2 class="text-2xl font-extrabold text-emerald-600">Geração Financeira</h2>
+            <button id="close-drawer-btn" class="text-gray-500 hover:text-gray-800 lg:hidden">
+                <i class="fas fa-times text-2xl"></i>
+            </button>
+        </div>
+        <nav class="space-y-4">
+            <a href="#" data-page="lancamentos" class="nav-link flex items-center p-3 rounded-xl text-lg font-medium text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 active-link">
+                <i class="fas fa-file-invoice-dollar w-6 mr-3"></i>
+                Lançar Receita/Despesa
+            </a>
+            <a href="#" data-page="categorias" class="nav-link flex items-center p-3 rounded-xl text-lg font-medium text-gray-700 hover:bg-emerald-50 hover:text-emerald-700">
+                <i class="fas fa-tags w-6 mr-3"></i>
+                Categorias (C/D)
+            </a>
+            <a href="#" data-page="contas" class="nav-link flex items-center p-3 rounded-xl text-lg font-medium text-gray-700 hover:bg-emerald-50 hover:text-emerald-700">
+                <i class="fas fa-university w-6 mr-3"></i>
+                Conta Bancária
+            </a>
+            <a href="#" data-page="conciliacao" class="nav-link flex items-center p-3 rounded-xl text-lg font-medium text-gray-700 hover:bg-emerald-50 hover:text-emerald-700">
+                <i class="fas fa-clipboard-check w-6 mr-3"></i>
+                Conciliação Bancária
+            </a>
+        </nav>
+        <!-- Removemos o botão "Limpar Dados Locais" pois a persistência é remota -->
+    </aside>
+
+    <!-- Conteúdo Principal -->
+    <main id="main-content" class="p-4 lg:p-8 transition-all duration-300">
+        <!-- Header -->
+        <header class="flex justify-between items-center mb-6 lg:mb-8 bg-white p-4 rounded-2xl shadow-md sticky top-0 z-30">
+            <div class="flex items-center">
+                <button id="hamburger-btn" class="text-gray-600 hover:text-gray-800 p-2 mr-3 rounded-full lg:hidden">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+                <h1 id="page-title" class="text-xl font-bold text-gray-800 transition-opacity">Geração Financeira</h1>
+            </div>
+            <div class="flex items-center space-x-3">
+                <div class="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600">
+                    <i class="fas fa-user"></i>
+                </div>
+            </div>
+        </header>
+
+        <!-- Container de Mensagens (Toast/Inline) -->
+        <div id="message-container" class="fixed top-4 right-4 z-50 space-y-2 max-w-sm w-full">
+            <!-- Mensagens aparecerão aqui -->
+        </div>
+
+        <!-- Vistas (Telas) -->
+        <div id="page-content" class="space-y-8">
+            <!-- 1. Lançar Receita/Despesa (Padrão) -->
+            <section id="lancamentos-page" class="page hidden space-y-6">
+                <div class="card p-4 md:p-6">
+                    <h2 class="text-2xl font-semibold mb-4 text-emerald-600">Novo Lançamento</h2>
+                    <form id="formLancamento" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div class="col-span-1">
+                            <label for="lancamentoData" class="block text-sm font-medium text-gray-700 mb-1">Data * (dd/mm/aaaa)</label>
+                            <!-- ALTERADO PARA TYPE="TEXT" e adicionado a classe 'date-masked-input' para aplicar máscara JS -->
+                            <input type="text" id="lancamentoData" class="date-masked-input input-text" placeholder="dd/mm/aaaa" required maxlength="10">
+                        </div>
+                        <div class="col-span-1 md:col-span-2 lg:col-span-1">
+                            <label for="lancamentoDescricao" class="block text-sm font-medium text-gray-700 mb-1">Descrição *</label>
+                            <input type="text" id="lancamentoDescricao" class="input-text" placeholder="Ex: Salário, Aluguel" required maxlength="255">
+                        </div>
+                        <div class="col-span-1">
+                            <label for="lancamentoCategoria" class="block text-sm font-medium text-gray-700 mb-1">Categoria *</label>
+                            <select id="lancamentoCategoria" class="select-input" required>
+                                <option value="">Selecione a Categoria</option>
+                            </select>
+                        </div>
+                        <div class="col-span-1">
+                            <label for="lancamentoConta" class="block text-sm font-medium text-gray-700 mb-1">Conta Bancária *</label>
+                            <select id="lancamentoConta" class="select-input" required>
+                                <option value="">Selecione a Conta</option>
+                            </select>
+                        </div>
+                        <div class="col-span-1">
+                            <label for="lancamentoValor" class="block text-sm font-medium text-gray-700 mb-1">Valor * (R$)</label>
+                            <!-- ALTERADO PARA TYPE="TEXT" e adicionado a classe 'monetary-input' para aplicar formatação JS -->
+                            <input type="text" id="lancamentoValor" class="monetary-input input-text" placeholder="R$ 0,00" required>
+                        </div>
+                        <div class="col-span-1">
+                            <label for="lancamentoNota" class="block text-sm font-medium text-gray-700 mb-1">Número da Nota (Opcional)</label>
+                            <input type="text" id="lancamentoNota" class="input-text" placeholder="Ex: NF-e 12345" maxlength="100">
+                        </div>
+                        <div class="col-span-full pt-2 flex justify-end">
+                            <button type="submit" class="btn-primary" id="btnSalvarLancamento">
+                                <i class="fas fa-plus-circle mr-2"></i> Salvar Lançamento
+                            </button>
+                        </div>
+                        <input type="hidden" id="lancamentoIdHidden">
+                    </form>
+                </div>
+
+                <!-- Filtros e Totalizadores -->
+                <div class="card">
+                    <h3 class="text-xl font-semibold mb-4">Filtros e Totalizadores</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                        <div>
+                            <label for="filtroDataInicio" class="block text-sm font-medium text-gray-700 mb-1">Data Início</label>
+                            <!-- ALTERADO PARA TYPE="TEXT" e adicionado a classe 'date-masked-input' para aplicar máscara JS -->
+                            <input type="text" id="filtroDataInicio" class="date-masked-input input-text" placeholder="dd/mm/aaaa" maxlength="10">
+                        </div>
+                        <div>
+                            <label for="filtroDataFim" class="block text-sm font-medium text-gray-700 mb-1">Data Fim</label>
+                            <!-- ALTERADO PARA TYPE="TEXT" e adicionado a classe 'date-masked-input' para aplicar máscara JS -->
+                            <input type="text" id="filtroDataFim" class="date-masked-input input-text" placeholder="dd/mm/aaaa" maxlength="10">
+                        </div>
+                        <div>
+                            <label for="filtroCategoria" class="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
+                            <select id="filtroCategoria" class="select-input">
+                                <option value="">Todas as Categorias</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="filtroConta" class="block text-sm font-medium text-gray-700 mb-1">Conta</label>
+                            <select id="filtroConta" class="select-input">
+                                <option value="">Todas as Contas</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Totalizadores -->
+                    <div id="totalizadores" class="grid grid-cols-3 gap-4 text-center border-t pt-4 mt-4">
+                        <div class="p-3 rounded-xl bg-green-50">
+                            <p class="text-sm font-medium text-green-700">Entradas</p>
+                            <p id="totalEntradas" class="text-lg font-bold text-green-900">R$ 0,00</p>
+                        </div>
+                        <div class="p-3 rounded-xl bg-red-50">
+                            <p class="text-sm font-medium text-red-700">Saídas</p>
+                            <p id="totalSaidas" class="text-lg font-bold text-red-900">R$ 0,00</p>
+                        </div>
+                        <div class="p-3 rounded-xl bg-blue-50">
+                            <p class="text-sm font-medium text-blue-700">Saldo</p>
+                            <p id="saldoTotal" class="text-lg font-bold text-blue-900">R$ 0,00</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Lista de Lançamentos -->
+                <div class="card p-0 overflow-x-auto">
+                    <table class="min-w-full compact-table">
+                        <thead>
+                            <tr>
+                                <th class="w-1/12">Data</th>
+                                <th class="w-3/12">Descrição</th>
+                                <th class="w-2/12">Categoria</th>
+                                <th class="w-1/12 desktop-only">Nº Nota</th>
+                                <th class="w-2/12">Conta</th>
+                                <th class="w-1/12 text-right">Valor</th>
+                                <th class="w-1/12 text-center">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tblLancamentos">
+                            <!-- Linhas de lançamento serão injetadas aqui -->
+                        </tbody>
+                    </table>
+                    <p id="noLancamentosMsg" class="text-center p-6 text-gray-500 hidden">Nenhum lançamento encontrado para os filtros aplicados.</p>
+                </div>
+            </section>
+
+            <!-- 2. Categorias -->
+            <section id="categorias-page" class="page hidden space-y-6">
+                <div class="card">
+                    <h2 class="text-2xl font-semibold mb-4 text-emerald-600">Gestão de Categorias</h2>
+                    <button id="btnNovaCategoria" class="btn-primary mb-6"><i class="fas fa-plus-circle mr-2"></i> Criar Categoria</button>
+
+                    <!-- Formulário/Modal de Categoria (Inicialmente oculto/inline) -->
+                    <div id="formCategoriaContainer" class="card bg-gray-50 p-4 mb-6 hidden">
+                        <h3 class="text-xl font-medium mb-3" id="categoriaFormTitle">Criar Nova Categoria</h3>
+                        <form id="formCategoria" class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                            <div class="col-span-1 md:col-span-2">
+                                <label for="categoriaNome" class="block text-sm font-medium text-gray-700 mb-1">Nome da Categoria *</label>
+                                <input type="text" id="categoriaNome" class="input-text" required minlength="2" maxlength="100">
+                                <p id="categoriaNomeError" class="text-red-500 text-sm mt-1 hidden"></p>
+                            </div>
+                            <div class="col-span-1">
+                                <label for="categoriaTipo" class="block text-sm font-medium text-gray-700 mb-1">Tipo *</label>
+                                <select id="categoriaTipo" class="select-input" required>
+                                    <option value="">Selecione o Tipo</option>
+                                    <option value="CREDITO">CREDITO (Receita)</option>
+                                    <option value="DEBITO">DÉBITO (Despesa)</option>
+                                </select>
+                            </div>
+                            <div class="col-span-full flex justify-end space-x-3">
+                                <button type="button" id="btnCancelarCategoria" class="btn-secondary">Cancelar</button>
+                                <button type="submit" class="btn-primary" id="btnSalvarCategoria">Salvar Categoria</button>
+                                <input type="hidden" id="categoriaIdHidden">
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Lista de Categorias -->
+                    <div class="p-0 overflow-x-auto">
+                        <table class="min-w-full compact-table">
+                            <thead>
+                                <tr>
+                                    <th class="w-5/12">Nome</th>
+                                    <th class="w-4/12">Tipo</th>
+                                    <th class="w-3/12 text-center">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tblCategorias">
+                                <!-- Categorias serão injetadas aqui -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 3. Conta Bancária -->
+            <section id="contas-page" class="page hidden space-y-6">
+                <div class="card">
+                    <h2 class="text-2xl font-semibold mb-4 text-emerald-600">Gestão de Contas Bancárias</h2>
+                    <button id="btnNovaConta" class="btn-primary mb-6"><i class="fas fa-plus-circle mr-2"></i> Cadastrar Conta</button>
+
+                    <!-- Formulário/Modal de Conta (Inicialmente oculto/inline) -->
+                    <div id="formContaContainer" class="card bg-gray-50 p-4 mb-6 hidden">
+                        <h3 class="text-xl font-medium mb-3" id="contaFormTitle">Cadastrar Nova Conta</h3>
+                        <form id="formConta" class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                            <div class="col-span-1 md:col-span-2">
+                                <label for="contaNome" class="block text-sm font-medium text-gray-700 mb-1">Nome da Conta *</label>
+                                <input type="text" id="contaNome" class="input-text" required maxlength="100">
+                                <p id="contaNomeError" class="text-red-500 text-sm mt-1 hidden"></p>
+                            </div>
+                            <div class="col-span-1">
+                                <label for="contaSaldoAbertura" class="block text-sm font-medium text-gray-700 mb-1">Saldo de Abertura (R$)</label>
+                                <!-- ALTERADO PARA TYPE="TEXT" e adicionado a classe 'monetary-input' para aplicar formatação JS -->
+                                <input type="text" id="contaSaldoAbertura" class="monetary-input input-text" placeholder="R$ 0,00" required>
+                            </div>
+                            <div class="col-span-1">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Saldo Atual (Calculado)</label>
+                                <p id="contaSaldoAtual" class="p-3 bg-white border border-gray-300 rounded-xl font-bold text-gray-700">R$ 0,00</p>
+                            </div>
+                            <div class="col-span-full flex justify-end space-x-3">
+                                <button type="button" id="btnCancelarConta" class="btn-secondary">Cancelar</button>
+                                <button type="submit" class="btn-primary" id="btnSalvarConta">Salvar Conta</button>
+                                <input type="hidden" id="contaIdHidden">
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Lista de Contas -->
+                    <div class="p-0 overflow-x-auto">
+                        <table class="min-w-full compact-table">
+                            <thead>
+                                <tr>
+                                    <th class="w-4/12">Nome da Conta</th>
+                                    <th class="w-3/12 text-right">Saldo de Abertura</th>
+                                    <th class="w-3/12 text-right">Saldo Atual</th>
+                                    <th class="w-2/12 text-center">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tblContas">
+                                <!-- Contas serão injetadas aqui -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 4. Conciliação Bancária (Relatório) -->
+            <section id="conciliacao-page" class="page hidden space-y-6">
+                <div class="card">
+                    <h2 class="text-2xl font-semibold mb-4 text-emerald-600">Relatório de Conciliação Bancária</h2>
+
+                    <!-- Filtros de Relatório -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end mb-6 border-b pb-4">
+                        <div class="col-span-1">
+                            <label for="relDataInicio" class="block text-sm font-medium text-gray-700 mb-1">Data Início * (dd/mm/aaaa)</label>
+                            <!-- ALTERADO PARA TYPE="TEXT" e adicionado a classe 'date-masked-input' para aplicar máscara JS -->
+                            <input type="text" id="relDataInicio" class="date-masked-input input-text" placeholder="dd/mm/aaaa" required maxlength="10">
+                        </div>
+                        <div class="col-span-1">
+                            <label for="relDataFim" class="block text-sm font-medium text-gray-700 mb-1">Data Fim * (dd/mm/aaaa)</label>
+                            <!-- ALTERADO PARA TYPE="TEXT" e adicionado a classe 'date-masked-input' para aplicar máscara JS -->
+                            <input type="text" id="relDataFim" class="date-masked-input input-text" placeholder="dd/mm/aaaa" required maxlength="10">
+                        </div>
+                        <div class="col-span-1">
+                            <label for="relContaId" class="block text-sm font-medium text-gray-700 mb-1">Conta Bancária *</label>
+                            <select id="relContaId" class="select-input" required>
+                                <option value="">Selecione a Conta</option>
+                            </select>
+                        </div>
+                        <div class="col-span-1 flex justify-end md:justify-start">
+                            <button id="btnGerarRelatorio" class="btn-primary disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                                <i class="fas fa-chart-line mr-2"></i> Gerar Relatório
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Resultado do Relatório -->
+                <div id="relatorioContainer" class="card hidden p-0">
+                    <div class="p-4 flex justify-between items-center bg-gray-50 border-b rounded-t-2xl">
+                        <h3 class="text-xl font-bold text-gray-800">Resultado da Conciliação</h3>
+                        <button id="btnExportarPDF" class="btn-secondary"><i class="fas fa-file-pdf mr-2"></i> Exportar PDF</button>
+                    </div>
+
+                    <!-- Conteúdo do Relatório para PDF -->
+                    <div id="relatorioContent" class="p-4 md:p-6">
+                        <header class="mb-6 border-b pb-3">
+                            <h4 class="text-lg font-bold text-emerald-700">Relatório de Conciliação Bancária</h4>
+                            <p class="text-sm">Conta: <span id="relContaNome"></span></p>
+                            <p class="text-sm">Período: <span id="relPeriodo"></span></p>
+                            <p class="text-sm">Data de Geração: <span id="relDataGeracao"></span></p>
+                        </header>
+
+                        <!-- Tabela de Conciliação -->
+                        <table class="min-w-full compact-table mb-6">
+                            <thead>
+                                <tr>
+                                    <th class="w-1/12">Data</th>
+                                    <th class="w-3/12">Descrição</th>
+                                    <th class="w-2/12">Categoria</th>
+                                    <th class="w-2/12 text-right">Valor Lançamento</th>
+                                    <th class="w-1/12 text-center">Sinal</th>
+                                    <th class="w-3/12 text-right">Saldo Acumulado</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tblRelatorioLancamentos">
+                                <!-- Linha Saldo Anterior (sempre a primeira) -->
+                                <tr class="bg-blue-50/50 font-bold">
+                                    <td data-label="Data"></td>
+                                    <td data-label="Descrição" colspan="3">SALDO ANTERIOR</td>
+                                    <td data-label="Sinal" class="text-center"></td>
+                                    <td data-label="Saldo Acumulado" id="relSaldoAnterior" class="text-right">R$ 0,00</td>
+                                </tr>
+                                <!-- Lançamentos -->
+                            </tbody>
+                            <tfoot id="tblRelatorioFooter">
+                                <tr class="bg-blue-200 font-extrabold text-blue-900">
+                                    <td colspan="5" class="text-lg">SALDO FINAL</td>
+                                    <td id="relSaldoFinal" class="text-right text-lg">R$ 0,00</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                        <p id="noRelatorioLancamentosMsg" class="text-center p-6 text-gray-500 hidden">Nenhum lançamento encontrado para este período e conta.</p>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <script>
+        // ====================================================================
+        // VARIÁVEIS DE ESTADO E PERSISTÊNCIA (SUPABASE)
+        // ====================================================================
+        let state = {
+            categorias: [],
+            contas: [],
+            lancamentos: []
+        };
+
+        const APP_PAGES = ['lancamentos', 'categorias', 'contas', 'conciliacao'];
+        let currentPage = 'lancamentos';
+
+        // SUPABASE INTEGRATION POINT: Configuração e Inicialização
+        // *** VOCÊ DEVE SUBSTITUIR ESTES VALORES COM OS DO SEU PROJETO SUPABASE ***
+        const supabaseUrl = 'https://wjgvusaiwyapldzyhhqz.supabase.co'; // Ex: 'https://xyzabcd.supabase.co'
+        const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndqZ3Z1c2Fpd3lhcGxkenloaHF6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQxNTY0MjcsImV4cCI6MjA3OTczMjQyN30.6tdjx7wIX3ZXrlBt2KxY1aV3_bbX1IkrQbNiRseTipQ'; // Ex: 'eyJhbGciOiJIUzI1NiI...'
+
+        // A PARTIR DESTE PONTO, A VALIDAÇÃO DE CONEXÃO FOI REMOVIDA PARA PERMITIR O TESTE COM AS CHAVES INSERIDAS.
+        
+        let supabaseClient;
+        try {
+            // Tentativa de usar a função de criação exposta pelo CDN
+            supabaseClient = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+        } catch (e) {
+            console.error("Erro ao inicializar o cliente Supabase:", e);
+            showMessage(`Erro crítico de inicialização: Falha ao carregar o cliente Supabase. Verifique o console.`, 'error');
+        }
+
+        const supabase = supabaseClient; // Atribui o cliente inicializado à constante principal usada no código
+        
+        // ====================================================================
+
+        // ====================================================================
+        // UTILS E MÁSCARAS (Monetário e Data) - MOVIDA PARA O TOPO
+        // ====================================================================
+
+        /**
+         * Sanitiza uma string para prevenir injeção de HTML.
+         * @param {string} str String a ser sanitizada.
+         * @returns {string} String sanitizada.
+         */
+        const sanitizeHtml = (str) => {
+            if (!str) return '';
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#x27;',
+                '/': '&#x2F;',
+            };
+            const reg = /[&<>"'/]/ig;
+            return str.replace(reg, (match)=>(map[match]));
+        };
+
+        /**
+         * Exibe uma mensagem de feedback (Toast/Modal).
+         * @param {string} message Mensagem a exibir.
+         * @param {'success'|'error'|'info'} type Tipo da mensagem.
+         */
+        const showMessage = (message, type) => {
+            const container = document.getElementById('message-container');
+            const colorMap = {
+                success: 'bg-emerald-500 border-emerald-700',
+                error: 'bg-red-500 border-red-700',
+                info: 'bg-blue-500 border-blue-700',
+            };
+
+            const element = document.createElement('div');
+            element.className = `p-4 text-white rounded-xl shadow-lg border-l-4 ${colorMap[type]}`;
+            element.textContent = message;
+
+            container.prepend(element); // Adiciona no topo
+
+            setTimeout(() => {
+                element.classList.add('opacity-0', 'transition-opacity', 'duration-500');
+                setTimeout(() => element.remove(), 500);
+            }, 5000);
+        };
+        
+        /**
+         * Limpa o valor, mantendo apenas dígitos.
+         * @param {string} value String de entrada.
+         * @returns {string} String contendo apenas dígitos.
+         */
+        const cleanNumber = (value) => {
+            // Remove tudo que não for dígito
+            let clean = String(value).replace(/\D/g, '');
+            // Limita para evitar problemas de float de JS em números grandes
+            if (clean.length > 18) clean = clean.substring(0, 18);
+            return clean;
+        };
+
+        /**
+         * Converte valor formatado BRL para float limpo (ex: "R$ 1.234,56" -> 1234.56).
+         * @param {string} formattedValue Valor monetário formatado.
+         * @returns {number} Valor float limpo, ou 0.
+         */
+        const unformatBRL = (formattedValue) => {
+            if (!formattedValue) return 0;
+            // Remove R$, pontos de milhar e substitui vírgula por ponto para float
+            const clean = String(formattedValue).replace(/[R$\s.]/g, '').replace(',', '.');
+            return parseFloat(clean) || 0;
+        };
+
+        /**
+         * Formata um valor (input DOM, number, ou string) para o formato BRL em tempo real (R$ 1.234,56).
+         * Utilizado no evento 'input' dos campos monetários.
+         * @param {HTMLInputElement|number|string} source Elemento input, número float, ou string.
+         * @returns {string} String formatada.
+         */
+        const formatToBRLForInput = (source) => {
+            let valueStr;
+            if (source instanceof HTMLInputElement) {
+                valueStr = source.value;
+            } else if (typeof source === 'number' || typeof source === 'string') {
+                // Se for número/string crua (do DB), apenas limpa os dígitos
+                valueStr = String(source);
+            } else {
+                return '';
+            }
+
+            let value = cleanNumber(valueStr);
+
+            if (value.length === 0) return '';
+            
+            // Garante pelo menos 3 dígitos para centavos (ex: "1" se torna "001")
+            let intPart = value.padStart(3, '0');
+            let cents = intPart.substring(intPart.length - 2);
+            let whole = intPart.substring(0, intPart.length - 2);
+            
+            // CORREÇÃO: Remove zeros à esquerda da parte inteira (ex: "0012" -> "12")
+            // Isso impede que números como 0,01 sejam exibidos como R$ 00,01.
+            whole = whole.replace(/^0+/, ''); // Remove todos os zeros iniciais
+
+            if (whole.length === 0) whole = '0'; // Garante que se o valor for < 1, a parte inteira seja "0"
+
+            // Adiciona separador de milhar (ponto)
+            whole = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+
+            return `R$ ${whole},${cents}`;
+        };
+
+        /**
+         * Aplica a máscara de data dd/mm/aaaa em tempo real.
+         * @param {HTMLInputElement} input Elemento input DOM.
+         */
+        const formatToDateBr = (input) => {
+            let value = input.value.replace(/\D/g, ''); // Apenas dígitos
+            
+            if (value.length > 8) {
+                value = value.substring(0, 8); // Limita a 8 dígitos (ddmmaaaa)
+            }
+
+            if (value.length > 4) {
+                value = value.replace(/^(\d{2})(\d{2})(\d{0,4})$/, '$1/$2/$3');
+            } else if (value.length > 2) {
+                value = value.replace(/^(\d{2})(\d{0,2})$/, '$1/$2');
+            }
+
+            input.value = value;
+        };
+
+        /**
+         * Converte data BR (dd/mm/aaaa) para formato ISO (aaaa-mm-dd).
+         * @param {string} dateStr Data no formato dd/mm/aaaa.
+         * @returns {string|null} Data no formato aaaa-mm-dd ou null se inválido.
+         */
+        const convertDateBrToIso = (dateStr) => {
+            if (!dateStr || dateStr.length !== 10) return null;
+            const parts = dateStr.split('/');
+            if (parts.length === 3) {
+                const day = parseInt(parts[0], 10);
+                const month = parseInt(parts[1], 10);
+                const year = parseInt(parts[2], 10);
+                
+                // Validação básica de limites (evita datas impossíveis como 32/13/999)
+                if (day < 1 || day > 31 || month < 1 || month > 12 || year < 1000) {
+                     return null; // Data inválida
+                }
+
+                // Cria um objeto Date para validação mais rigorosa (ex: 30/02)
+                const date = new Date(year, month - 1, day);
+                if (date.getFullYear() !== year || date.getMonth() + 1 !== month || date.getDate() !== day) {
+                     return null; // Data logicamente inválida (ex: 30 de Fev.)
+                }
+
+                // Retorna no formato ISO aaaa-mm-dd
+                return `${parts[2]}-${parts[1]}-${parts[0]}`;
+            }
+            return null;
+        };
+        
+        /**
+         * Converte data ISO (aaaa-mm-dd) para data BR (dd/mm/aaaa).
+         * @param {string} isoDate Data no formato aaaa-mm-dd.
+         * @returns {string} Data no formato dd/mm/aaaa.
+         */
+        const convertDateIsoToBr = (isoDate) => {
+            if (!isoDate || isoDate.length !== 10) return '';
+            const parts = isoDate.split('-');
+            if (parts.length === 3) {
+                // Formato aaaa-mm-dd -> dd/mm/aaaa
+                return `${parts[2]}/${parts[1]}/${parts[0]}`;
+            }
+            return '';
+        };
+
+        /**
+         * Formata um valor numérico para o formato monetário brasileiro (R$). (Para Display/Relatórios)
+         * Esta função é robusta e não precisa de alteração.
+         * @param {number} value Valor a ser formatado.
+         * @returns {string} String formatada (ex: R$ 1.234,56).
+         */
+        const formatMoney = (value) => {
+            if (typeof value !== 'number') return 'R$ 0,00';
+            return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        };
+
+        // ====================================================================
+        // PONTO DE INTEGRAÇÃO API/DB (FUNÇÕES DE CARREGAMENTO)
+        // ====================================================================
+
+        /**
+         * Carrega o estado da aplicação do Supabase.
+         * @returns {Promise<void>}
+         */
+        const loadData = async () => {
+            try {
+                // Código existente para buscar dados...
+                let { data: categoriasData, error: catError } = await supabase.from('categorias').select('*');
+                if (catError) throw catError;
+                state.categorias = categoriasData || [];
+
+                let { data: contasData, error: accError } = await supabase.from('contas').select('*');
+                if (accError) throw accError;
+                state.contas = contasData || [];
+
+                let { data: lancamentosData, error: txnError } = await supabase.from('lancamentos').select('*');
+                if (txnError) throw txnError;
+                state.lancamentos = lancamentosData || [];
+
+                showMessage('Dados carregados com sucesso do Supabase.', 'success');
+
+                // Conversão de IDs para String e garantia de tipos numéricos após o fetch
+                state.categorias.forEach(c => c.id = String(c.id));
+                state.contas.forEach(c => {
+                    c.id = String(c.id);
+                    c.saldoAbertura = parseFloat(c.saldoAbertura) || 0; // Garante que é float para cálculos
+                });
+                state.lancamentos.forEach(l => {
+                    l.id = String(l.id);
+                    l.valor = parseFloat(l.valor) || 0; // Garante que é float para cálculos
+                    if (l.categoriaId !== null && l.categoriaId !== undefined) l.categoriaId = String(l.categoriaId);
+                    if (l.contaId !== null && l.contaId !== undefined) l.contaId = String(l.contaId);
+                });
+
+            } catch (error) {
+                console.error("Erro ao carregar dados do Supabase:", error);
+                showMessage(`Erro ao carregar dados: ${error.message}. Verifique a RLS e o Console.`, 'error');
+                
+                // Inicializa com dados vazios em caso de falha
+                state.categorias = [];
+                state.contas = [];
+                state.lancamentos = [];
+            }
+        };
+
+        // ====================================================================
+        // CÁLCULOS E REGRAS DE NEGÓCIO (Mantidas, mas usando valores limpos)
+        // ====================================================================
+
+        /**
+         * Calcula o saldo atual de uma conta, considerando todos os lançamentos.
+         * @param {string} contaId ID da conta (string, mas comparado com ==).
+         * @returns {number} Saldo atual calculado.
+         */
+        const calculateAccountBalance = (contaId) => {
+            const conta = state.contas.find(c => c.id == contaId); 
+            if (!conta) return 0;
+
+            let saldo = parseFloat(conta.saldoAbertura) || 0;
+
+            const lancamentosDaConta = state.lancamentos.filter(l => l.contaId == contaId);
+
+            lancamentosDaConta.forEach(lancamento => {
+                const categoria = state.categorias.find(c => c.id == lancamento.categoriaId);
+                const valor = parseFloat(lancamento.valor) || 0;
+
+                if (categoria && categoria.tipo === 'CREDITO') {
+                    saldo += valor;
+                } else if (categoria && categoria.tipo === 'DEBITO') {
+                    saldo -= valor;
+                }
+            });
+
+            return saldo;
+        };
+
+        /**
+         * Atualiza o campo Saldo Atual em todas as contas e retorna o novo estado.
+         * @returns {Array<Object>} Lista de contas com Saldo Atual calculado.
+         */
+        const calculateAccountBalances = () => {
+            return state.contas.map(conta => ({
+                ...conta,
+                saldoAtual: calculateAccountBalance(conta.id)
+            }));
+        };
+
+        /**
+         * Calcula o Saldo Anterior para o relatório de conciliação.
+         * @param {string} contaId ID da conta (string, mas comparado com ==).
+         * @param {string} dataInicio Data de início do período (ISO format YYYY-MM-DD).
+         * @returns {number} Saldo anterior.
+         */
+        const calculatePreviousBalance = (contaId, dataInicio) => {
+            const conta = state.contas.find(c => c.id == contaId);
+            if (!conta) return 0;
+
+            let saldoAnterior = parseFloat(conta.saldoAbertura) || 0;
+
+            // Filtra lançamentos anteriores à data de início (datas já estão em formato ISO para comparação)
+            const lancamentosAnteriores = state.lancamentos
+                .filter(l => l.contaId == contaId && l.data < dataInicio)
+                .sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime());
+
+            lancamentosAnteriores.forEach(lancamento => {
+                const categoria = state.categorias.find(c => c.id == lancamento.categoriaId);
+                const valor = parseFloat(lancamento.valor) || 0;
+
+                if (categoria && categoria.tipo === 'CREDITO') {
+                    saldoAnterior += valor;
+                } else if (categoria && categoria.tipo === 'DEBITO') {
+                    saldoAnterior -= valor;
+                }
+            });
+
+            return saldoAnterior;
+        };
+
+        // ====================================================================
+        // RENDERIZAÇÃO E UI
+        // ====================================================================
+
+        /**
+         * Alterna a visibilidade das páginas e atualiza o título.
+         * @param {string} pageId ID da página a ser exibida.
+         */
+        const changePage = (pageId) => {
+            // Esconde todas as páginas
+            document.querySelectorAll('.page').forEach(page => page.classList.add('hidden'));
+
+            // Exibe a página solicitada
+            const targetPage = document.getElementById(`${pageId}-page`);
+            if (targetPage) {
+                targetPage.classList.remove('hidden');
+
+                // Atualiza o título do header
+                const titleMap = {
+                    lancamentos: 'Lançar Receita/Despesa',
+                    categorias: 'Categorias (Crédito/Débito)',
+                    contas: 'Contas Bancárias',
+                    conciliacao: 'Relatório de Conciliação Bancária'
+                };
+                document.getElementById('page-title').textContent = titleMap[pageId] || 'Geração Financeira';
+                currentPage = pageId;
+            }
+
+            // Atualiza o estado visual do menu lateral
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active-link', 'bg-emerald-100', 'text-emerald-800');
+                if (link.dataset.page === pageId) {
+                    link.classList.add('active-link', 'bg-emerald-100', 'text-emerald-800');
+                }
+            });
+
+            // Fecha o drawer em mobile
+            closeDrawer();
+        };
+        
+        // ... (restante das funções de renderização: populateSelects, renderCategorias, renderContas, renderLancamentos) ...
+        
+        /**
+         * Preenche os selects de Categoria e Conta em todos os formulários/filtros.
+         */
+        const populateSelects = () => {
+            // Elementos de Categoria
+            const catSelects = document.querySelectorAll('#lancamentoCategoria, #filtroCategoria');
+            const relCatSelect = document.getElementById('filtroCategoria');
+
+            catSelects.forEach(select => {
+                const isFilter = select.id.startsWith('filtro');
+                select.innerHTML = `<option value="">${isFilter ? 'Todas as Categorias' : 'Selecione a Categoria'}</option>`;
+                state.categorias.sort((a, b) => a.nome.localeCompare(b.nome)).forEach(cat => {
+                    const option = document.createElement('option');
+                    option.value = cat.id;
+                    option.textContent = `${cat.nome} (${cat.tipo === 'CREDITO' ? 'C' : 'D'})`;
+                    select.appendChild(option);
+                });
+            });
+
+            // Elementos de Conta
+            const accSelects = document.querySelectorAll('#lancamentoConta, #filtroConta, #relContaId');
+
+            accSelects.forEach(select => {
+                const isFilter = select.id.startsWith('filtro') || select.id.startsWith('rel');
+                select.innerHTML = `<option value="">${isFilter ? 'Todas as Contas' : 'Selecione a Conta'}</option>`;
+                state.contas.sort((a, b) => a.nome.localeCompare(b.nome)).forEach(acc => {
+                    const option = document.createElement('option');
+                    option.value = acc.id;
+                    option.textContent = acc.nome;
+                    select.appendChild(option);
+                });
+            });
+        };
+
+        /**
+         * Renderiza a lista de categorias.
+         */
+        const renderCategorias = () => {
+            const tblBody = document.getElementById('tblCategorias');
+            tblBody.innerHTML = ''; // Limpa a lista
+
+            state.categorias.sort((a, b) => a.nome.localeCompare(b.nome)).forEach(cat => {
+                const typeClass = cat.tipo === 'CREDITO' ? 'text-green-600 bg-green-100' : 'text-red-600 bg-red-100';
+
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50';
+                row.innerHTML = `
+                    <td data-label="Nome">${sanitizeHtml(cat.nome)}</td>
+                    <td data-label="Tipo"><span class="px-3 py-1 text-xs font-semibold rounded-full ${typeClass}">${cat.tipo}</span></td>
+                    <td data-label="Ações" class="flex items-center justify-center space-x-2">
+                        <button onclick="editCategoria('${cat.id}')" class="text-blue-500 hover:text-blue-700 p-2 rounded-full"><i class="fas fa-edit"></i></button>
+                        <button onclick="deleteCategoria('${cat.id}')" class="text-red-500 hover:text-red-700 p-2 rounded-full"><i class="fas fa-trash"></i></button>
+                    </td>
+                `;
+                tblBody.appendChild(row);
+            });
+        };
+
+        /**
+         * Renderiza a lista de contas.
+         */
+        const renderContas = () => {
+            const tblBody = document.getElementById('tblContas');
+            tblBody.innerHTML = ''; // Limpa a lista
+            const contasComSaldo = calculateAccountBalances();
+
+            contasComSaldo.sort((a, b) => a.nome.localeCompare(b.nome)).forEach(conta => {
+                const saldoAtualClass = conta.saldoAtual >= 0 ? 'text-green-600' : 'text-red-600';
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50';
+                row.innerHTML = `
+                    <td data-label="Nome da Conta">${sanitizeHtml(conta.nome)}</td>
+                    <td data-label="Saldo de Abertura" class="text-right">${formatMoney(parseFloat(conta.saldoAbertura))}</td>
+                    <td data-label="Saldo Atual" class="text-right font-bold ${saldoAtualClass}">${formatMoney(conta.saldoAtual)}</td>
+                    <td data-label="Ações" class="flex items-center justify-center space-x-2">
+                        <button onclick="editConta('${conta.id}')" class="text-blue-500 hover:text-blue-700 p-2 rounded-full"><i class="fas fa-edit"></i></button>
+                        <button onclick="deleteConta('${conta.id}')" class="text-red-500 hover:text-red-700 p-2 rounded-full"><i class="fas fa-trash"></i></button>
+                    </td>
+                `;
+                tblBody.appendChild(row);
+            });
+        };
+
+        /**
+         * Renderiza a lista de lançamentos com filtros e totalizadores.
+         */
+        const renderLancamentos = () => {
+            const tblBody = document.getElementById('tblLancamentos');
+            tblBody.innerHTML = ''; // Limpa a lista
+            const noMsg = document.getElementById('noLancamentosMsg');
+
+            // Coleta filtros (as datas e valores estão em BR, mas os filtros não precisam de conversão imediata, apenas ao filtrar)
+            const dataInicioStrBr = document.getElementById('filtroDataInicio').value;
+            const dataFimStrBr = document.getElementById('filtroDataFim').value;
+            const categoriaFiltroId = document.getElementById('filtroCategoria').value;
+            const contaFiltroId = document.getElementById('filtroConta').value;
+
+            // Converte datas de filtro para ISO (para comparação com os dados do state)
+            const dataInicioIso = convertDateBrToIso(dataInicioStrBr);
+            const dataFimIso = convertDateBrToIso(dataFimStrBr);
+
+            // Aplica filtros
+            let lancamentosFiltrados = state.lancamentos.filter(l => {
+                let pass = true;
+                // Compara datas ISO (l.data)
+                if (dataInicioIso && l.data < dataInicioIso) pass = false;
+                if (dataFimIso && l.data > dataFimIso) pass = false;
+                
+                if (categoriaFiltroId && l.categoriaId != categoriaFiltroId) pass = false;
+                if (contaFiltroId && l.contaId != contaFiltroId) pass = false;
+                return pass;
+            });
+
+            // Ordena por data decrescente e depois por data de criação (para desempate)
+            lancamentosFiltrados.sort((a, b) => {
+                if (a.data !== b.data) {
+                    return new Date(b.data).getTime() - new Date(a.data).getTime();
+                }
+                return new Date(b.criacao).getTime() - new Date(a.criacao).getTime();
+            });
+
+            // Calcula totalizadores
+            let totalEntradas = 0;
+            let totalSaidas = 0;
+
+            lancamentosFiltrados.forEach(lancamento => {
+                const categoria = state.categorias.find(c => c.id == lancamento.categoriaId);
+                const conta = state.contas.find(c => c.id == lancamento.contaId);
+
+                if (categoria) {
+                    const valor = parseFloat(lancamento.valor) || 0;
+                    if (categoria.tipo === 'CREDITO') {
+                        totalEntradas += valor;
+                    } else if (categoria.tipo === 'DEBITO') {
+                        totalSaidas += valor;
+                    }
+                }
+
+                const tipo = categoria ? (categoria.tipo === 'CREDITO' ? 'Receita' : 'Despesa') : 'Sem Cat.';
+                const typeClass = categoria ? (categoria.tipo === 'CREDITO' ? 'text-green-600 font-bold' : 'text-red-600 font-bold') : 'text-gray-500';
+
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50 transition-colors';
+                row.innerHTML = `
+                    <td data-label="Data">${convertDateIsoToBr(lancamento.data)}</td>
+                    <td data-label="Descrição" class="truncate max-w-xs">${sanitizeHtml(lancamento.descricao)}</td>
+                    <td data-label="Categoria">${sanitizeHtml(categoria?.nome || 'Não Encontrada')} (${tipo.charAt(0)})</td>
+                    <td data-label="Nº Nota" class="desktop-only truncate max-w-xs">${sanitizeHtml(lancamento.numeroNota)}</td>
+                    <td data-label="Conta">${sanitizeHtml(conta?.nome || 'Não Encontrada')}</td>
+                    <td data-label="Valor" class="text-right ${typeClass}">${formatMoney(lancamento.valor)}</td>
+                    <td data-label="Ações" class="flex items-center justify-center space-x-2">
+                        <button onclick="editLancamento('${lancamento.id}')" class="text-blue-500 hover:text-blue-700 p-2 rounded-full"><i class="fas fa-edit"></i></button>
+                        <button onclick="deleteLancamento('${lancamento.id}')" class="text-red-500 hover:text-red-700 p-2 rounded-full"><i class="fas fa-trash"></i></button>
+                    </td>
+                `;
+                tblBody.appendChild(row);
+            });
+
+            // Atualiza totalizadores
+            document.getElementById('totalEntradas').textContent = formatMoney(totalEntradas);
+            document.getElementById('totalSaidas').textContent = formatMoney(totalSaidas);
+            document.getElementById('saldoTotal').textContent = formatMoney(totalEntradas - totalSaidas);
+            document.getElementById('saldoTotal').className = (totalEntradas - totalSaidas) >= 0 ? 'text-lg font-bold text-blue-900' : 'text-lg font-bold text-red-700';
+
+            // Mensagem de "não encontrado"
+            if (lancamentosFiltrados.length === 0) {
+                noMsg.classList.remove('hidden');
+            } else {
+                noMsg.classList.add('hidden');
+            }
+        };
+
+        /**
+         * Renderiza todo o conteúdo que depende do estado (Tabelas e Selects).
+         */
+        const renderAll = async () => {
+            // Recarrega os dados do Supabase antes de renderizar (necessário após qualquer CRUD)
+            await loadData();
+
+            populateSelects();
+            renderCategorias();
+            renderContas();
+            renderLancamentos(); // Renderiza os lançamentos, aplicando filtros padrão
+        };
+
+
+        // ====================================================================
+        // GESTÃO DE CATEGORIAS (SUPABASE CRUD) - MOVIDAS PARA O INÍCIO PARA RESOLVER REFERENCE ERROR
+        // ====================================================================
+
+        /**
+         * Fecha o formulário de categoria.
+         */
+        const closeCategoriaForm = () => {
+            document.getElementById('formCategoriaContainer').classList.add('hidden');
+            document.getElementById('btnNovaCategoria').classList.remove('hidden');
+            document.getElementById('categoriaIdHidden').value = '';
+            document.getElementById('categoriaNomeError').classList.add('hidden');
+        };
+
+        /**
+         * Abre o formulário de categoria para criação ou edição.
+         * @param {string} id ID da categoria para edição, ou null para nova.
+         */
+        const openCategoriaForm = (id = null) => {
+            const formContainer = document.getElementById('formCategoriaContainer');
+            const nomeInput = document.getElementById('categoriaNome');
+            const tipoSelect = document.getElementById('categoriaTipo');
+            const idHidden = document.getElementById('categoriaIdHidden');
+            const formTitle = document.getElementById('categoriaFormTitle');
+
+            formContainer.classList.remove('hidden');
+            document.getElementById('btnNovaCategoria').classList.add('hidden');
+            nomeInput.value = '';
+            tipoSelect.value = '';
+            idHidden.value = '';
+            document.getElementById('categoriaNomeError').classList.add('hidden');
+
+            if (id) {
+                const categoria = state.categorias.find(c => c.id == id);
+                if (categoria) {
+                    nomeInput.value = categoria.nome;
+                    tipoSelect.value = categoria.tipo;
+                    idHidden.value = categoria.id;
+                    formTitle.textContent = 'Editar Categoria';
+                }
+            } else {
+                formTitle.textContent = 'Criar Nova Categoria';
+            }
+        };
+
+        /**
+         * Salva ou atualiza uma categoria no Supabase.
+         * @param {Event} e Evento de submit do formulário.
+         */
+        const saveCategoria = async (e) => {
+            e.preventDefault();
+
+            const nome = document.getElementById('categoriaNome').value.trim();
+            const tipo = document.getElementById('categoriaTipo').value;
+            const id = document.getElementById('categoriaIdHidden').value;
+            const nomeError = document.getElementById('categoriaNomeError');
+            nomeError.classList.add('hidden');
+
+            // Validações
+            if (nome.length < 2 || nome.length > 100) {
+                nomeError.textContent = 'Nome deve ter entre 2 e 100 caracteres.';
+                nomeError.classList.remove('hidden');
+                return;
+            }
+
+            // Validação de Duplicidade (Nome único por Tipo, ignorando o item atual na edição)
+            const isDuplicate = state.categorias.some(cat =>
+                cat.nome.toLowerCase() === nome.toLowerCase() &&
+                cat.tipo === tipo &&
+                cat.id != id
+            );
+
+            if (isDuplicate) {
+                nomeError.textContent = `Categoria '${nome}' do tipo '${tipo}' já existe.`;
+                nomeError.classList.remove('hidden');
+                return;
+            }
+
+            const payload = { nome, tipo };
+            let error = null;
+
+            if (id) {
+                // Edição: SUPABASE INTEGRATION POINT - UPDATE
+                const { error: updateError } = await supabase
+                    .from('categorias')
+                    .update(payload)
+                    .eq('id', id);
+                error = updateError;
+                if (!error) showMessage('Categoria atualizada com sucesso no Supabase.', 'success');
+            } else {
+                // Criação: SUPABASE INTEGRATION POINT - INSERT
+                const { error: insertError } = await supabase
+                    .from('categorias')
+                    .insert([payload]);
+                error = insertError;
+                if (!error) showMessage('Categoria criada com sucesso no Supabase.', 'success');
+            }
+
+            if (error) {
+                console.error("Erro Supabase:", error);
+                showMessage(`Erro ao salvar categoria: ${error.message}`, 'error');
+            } else {
+                closeCategoriaForm();
+                await renderAll(); // Recarrega dados após sucesso
+            }
+        };
+
+        /**
+         * Prepara o formulário para edição de categoria.
+         * @param {string} id ID da categoria a editar.
+         */
+        const editCategoria = (id) => {
+            openCategoriaForm(id);
+        };
+
+        /**
+         * Exclui uma categoria do Supabase.
+         * @param {string} id ID da categoria a excluir.
+         */
+        const deleteCategoria = async (id) => {
+            const hasLancamentos = state.lancamentos.some(l => l.categoriaId == id);
+
+            if (hasLancamentos) {
+                showMessage('Não é possível excluir: existem lançamentos vinculados a esta categoria.', 'error');
+                return;
+            }
+
+            if (confirm('Tem certeza que deseja excluir esta categoria?')) {
+                // Exclusão: SUPABASE INTEGRATION POINT - DELETE
+                const { error } = await supabase
+                    .from('categorias')
+                    .delete()
+                    .eq('id', id);
+
+                if (error) {
+                    console.error("Erro Supabase:", error);
+                    showMessage(`Erro ao excluir categoria: ${error.message}`, 'error');
+                } else {
+                    showMessage('Categoria excluída com sucesso do Supabase.', 'success');
+                    await renderAll(); // Recarrega dados após sucesso
+                }
+            }
+        };
+
+        // ====================================================================
+        // GESTÃO DE CONTAS (SUPABASE CRUD)
+        // ====================================================================
+
+        /**
+         * Abre o formulário de conta para criação ou edição.
+         * @param {string} id ID da conta para edição, ou null para nova.
+         */
+        const openContaForm = (id = null) => {
+            const formContainer = document.getElementById('formContaContainer');
+            const nomeInput = document.getElementById('contaNome');
+            const saldoAberturaInput = document.getElementById('contaSaldoAbertura');
+            const idHidden = document.getElementById('contaIdHidden');
+            const formTitle = document.getElementById('contaFormTitle');
+            const saldoAtualText = document.getElementById('contaSaldoAtual');
+
+            formContainer.classList.remove('hidden');
+            document.getElementById('btnNovaConta').classList.add('hidden');
+            nomeInput.value = '';
+            saldoAberturaInput.value = '';
+            idHidden.value = '';
+            saldoAtualText.textContent = formatMoney(0);
+            document.getElementById('contaNomeError').classList.add('hidden');
+
+
+            if (id) {
+                const conta = state.contas.find(c => c.id == id);
+                if (conta) {
+                    nomeInput.value = conta.nome;
+                    // EXIBIÇÃO: Formata o valor float do DB para BRL no input
+                    saldoAberturaInput.value = formatToBRLForInput(conta.saldoAbertura);
+                    idHidden.value = conta.id;
+                    formTitle.textContent = 'Editar Conta Bancária';
+                    saldoAtualText.textContent = formatMoney(calculateAccountBalance(id));
+                }
+            } else {
+                formTitle.textContent = 'Cadastrar Nova Conta';
+            }
+        };
+
+        /**
+         * Fecha o formulário de conta.
+         */
+        const closeContaForm = () => {
+            document.getElementById('formContaContainer').classList.add('hidden');
+            document.getElementById('btnNovaConta').classList.remove('hidden');
+            document.getElementById('contaIdHidden').value = '';
+            document.getElementById('contaNomeError').classList.add('hidden');
+        };
+
+        /**
+         * Salva ou atualiza uma conta no Supabase.
+         * @param {Event} e Evento de submit do formulário.
+         */
+        const saveConta = async (e) => {
+            e.preventDefault();
+
+            const nome = document.getElementById('contaNome').value.trim();
+            const saldoAberturaInput = document.getElementById('contaSaldoAbertura');
+            // CONVERSÃO: Pega o valor formatado do input e converte para float limpo
+            const saldoAbertura = unformatBRL(saldoAberturaInput.value);
+            const id = document.getElementById('contaIdHidden').value;
+            const nomeError = document.getElementById('contaNomeError');
+            nomeError.classList.add('hidden');
+
+            // Validação de Nome
+            if (nome.length < 1) {
+                nomeError.textContent = 'Nome da conta é obrigatório.';
+                nomeError.classList.remove('hidden');
+                return;
+            }
+            
+            // Validação de Valor
+            if (saldoAbertura === 0 && saldoAberturaInput.value.trim() !== 'R$ 0,00' && saldoAberturaInput.value.trim().length > 0) {
+                 showMessage('O valor do Saldo de Abertura é inválido.', 'error');
+                 return;
+            }
+
+            // Validação de Duplicidade (Nome único)
+            const isDuplicate = state.contas.some(c =>
+                c.nome.toLowerCase() === nome.toLowerCase() &&
+                c.id != id
+            );
+
+            if (isDuplicate) {
+                nomeError.textContent = `Conta '${nome}' já existe.`;
+                nomeError.classList.remove('hidden');
+                return;
+            }
+
+            // payload usa o valor float limpo
+            const payload = { nome, saldoAbertura };
+            let error = null;
+
+            if (id) {
+                // Edição: SUPABASE INTEGRATION POINT - UPDATE
+                const { error: updateError } = await supabase
+                    .from('contas')
+                    .update(payload)
+                    .eq('id', id);
+                error = updateError;
+                if (!error) showMessage('Conta atualizada com sucesso no Supabase.', 'success');
+            } else {
+                // Criação: SUPABASE INTEGRATION POINT - INSERT
+                const { error: insertError } = await supabase
+                    .from('contas')
+                    .insert([payload]);
+                error = insertError;
+                if (!error) showMessage('Conta cadastrada com sucesso no Supabase.', 'success');
+            }
+
+            if (error) {
+                console.error("Erro Supabase:", error);
+                showMessage(`Erro ao salvar conta: ${error.message}`, 'error');
+            } else {
+                closeContaForm();
+                await renderAll(); // Recarrega dados após sucesso
+            }
+        };
+
+        /**
+         * Prepara o formulário para edição de conta.
+         * @param {string} id ID da conta a editar.
+         */
+        const editConta = (id) => {
+            openContaForm(id);
+        };
+
+        /**
+         * Exclui uma conta do Supabase, verificando lançamentos vinculados.
+         * @param {string} id ID da conta a excluir.
+         */
+        const deleteConta = async (id) => {
+            const hasLancamentos = state.lancamentos.some(l => l.contaId == id);
+
+            if (hasLancamentos) {
+                if (confirm('ATENÇÃO: Existem lançamentos vinculados a esta conta. Ao excluir, estes lançamentos ficarão sem conta. Deseja continuar?')) {
+                    
+                    // SUPABASE INTEGRATION POINT - ATUALIZAÇÃO MÚLTIPLA (Desvincular)
+                    const { error: updateError } = await supabase
+                        .from('lancamentos')
+                        .update({ contaId: null }) // Usa null para desvincular (coluna deve aceitar nulos)
+                        .eq('contaId', id);
+
+                    if (updateError) {
+                        console.error("Erro Supabase Desvincular:", updateError);
+                        showMessage(`Erro ao desvincular lançamentos: ${updateError.message}`, 'error');
+                        return;
+                    }
+
+                    // Exclusão: SUPABASE INTEGRATION POINT - DELETE
+                    const { error: deleteError } = await supabase
+                        .from('contas')
+                        .delete()
+                        .eq('id', id);
+
+                    if (deleteError) {
+                        console.error("Erro Supabase Excluir:", deleteError);
+                        showMessage(`Erro ao excluir conta: ${deleteError.message}`, 'error');
+                    } else {
+                        showMessage('Conta excluída e lançamentos desvinculados com sucesso.', 'success');
+                        await renderAll(); // Recarrega dados após sucesso
+                    }
+                }
+            } else {
+                if (confirm('Tem certeza que deseja excluir esta conta?')) {
+                    // Exclusão: SUPABASE INTEGRATION POINT - DELETE
+                    const { error } = await supabase
+                        .from('contas')
+                        .delete()
+                        .eq('id', id);
+
+                    if (error) {
+                        console.error("Erro Supabase:", error);
+                        showMessage(`Erro ao excluir conta: ${error.message}`, 'error');
+                    } else {
+                        showMessage('Conta excluída com sucesso.', 'success');
+                        await renderAll(); // Recarrega dados após sucesso
+                    }
+                }
+            }
+        };
+
+        // ====================================================================
+        // GESTÃO DE LANÇAMENTOS (SUPABASE CRUD)
+        // ====================================================================
+
+        /**
+         * Limpa e prepara o formulário de lançamento.
+         */
+        const resetLancamentoForm = () => {
+            document.getElementById('formLancamento').reset();
+            document.getElementById('lancamentoIdHidden').value = '';
+            document.getElementById('btnSalvarLancamento').textContent = 'Salvar Lançamento';
+            document.getElementById('btnSalvarLancamento').prepend(Object.assign(document.createElement('i'), { className: 'fas fa-plus-circle mr-2' }));
+        };
+
+        /**
+         * Salva ou atualiza um lançamento no Supabase.
+         * @param {Event} e Evento de submit do formulário.
+         */
+        const saveLancamento = async (e) => {
+            e.preventDefault();
+
+            const id = document.getElementById('lancamentoIdHidden').value;
+            
+            const dataBr = document.getElementById('lancamentoData').value;
+            // CONVERSÃO: Data de BR para ISO (para salvar)
+            const data = convertDateBrToIso(dataBr);
+            
+            const descricao = document.getElementById('lancamentoDescricao').value.trim();
+            const categoriaId = document.getElementById('lancamentoCategoria').value;
+            const contaId = document.getElementById('lancamentoConta').value;
+            
+            const valorInput = document.getElementById('lancamentoValor');
+            // CONVERSÃO: Valor de BRL formatado para float limpo
+            const valor = unformatBRL(valorInput.value);
+            
+            const numeroNota = document.getElementById('lancamentoNota').value.trim();
+
+            // Validações
+            if (!data || !descricao || !categoriaId || !contaId || valor <= 0 || descricao.length === 0) {
+                showMessage('Por favor, preencha todos os campos obrigatórios, verifique se a data está correta (dd/mm/aaaa) e se o valor é positivo.', 'error');
+                return;
+            }
+            // Validação de data completa (se a conversão para ISO falhar, data será null)
+            if (!data) {
+                showMessage('A data inserida é inválida. Use o formato dd/mm/aaaa e verifique se o dia/mês/ano são possíveis.', 'error');
+                return;
+            }
+            
+            const payload = {
+                data: data, // ISO Format
+                descricao: descricao,
+                "categoriaId": parseInt(categoriaId, 10), 
+                "contaId": parseInt(contaId, 10),
+                valor: valor, // Float limpo
+                "numeroNota": numeroNota,
+                criacao: new Date().toISOString()
+            };
+            
+            let error = null;
+
+            if (id) {
+                // Edição: SUPABASE INTEGRATION POINT - UPDATE
+                const { error: updateError } = await supabase
+                    .from('lancamentos')
+                    .update(payload)
+                    .eq('id', id);
+                error = updateError;
+                if (!error) showMessage('Lançamento atualizado com sucesso no Supabase.', 'success');
+            } else {
+                // Criação: SUPABASE INTEGRATION POINT - INSERT
+                const { error: insertError } = await supabase
+                    .from('lancamentos')
+                    .insert([payload]);
+                error = insertError;
+                if (!error) showMessage('Lançamento criado com sucesso no Supabase.', 'success');
+            }
+
+            if (error) {
+                console.error("Erro Supabase:", error);
+                showMessage(`Erro ao salvar lançamento: ${error.message}`, 'error');
+            } else {
+                resetLancamentoForm();
+                await renderAll(); // Recarrega dados e recalcula saldos
+            }
+        };
+
+        /**
+         * Prepara o formulário para edição de lançamento.
+         * @param {string} id ID do lançamento a editar.
+         */
+        const editLancamento = (id) => {
+            const lancamento = state.lancamentos.find(l => l.id == id);
+            if (!lancamento) return;
+            
+            // EXIBIÇÃO: Converte a data ISO para BR para exibição no input
+            document.getElementById('lancamentoData').value = convertDateIsoToBr(lancamento.data);
+            
+            // EXIBIÇÃO: Formata o valor float para BRL formatado para exibição no input
+            document.getElementById('lancamentoValor').value = formatToBRLForInput(lancamento.valor);
+            
+            // ... (restante do mapeamento de campos)
+            document.getElementById('lancamentoIdHidden').value = lancamento.id;
+            document.getElementById('lancamentoDescricao').value = lancamento.descricao;
+            document.getElementById('lancamentoCategoria').value = lancamento.categoriaId;
+            document.getElementById('lancamentoConta').value = lancamento.contaId;
+            document.getElementById('lancamentoNota').value = lancamento.numeroNota;
+
+            // Atualiza o botão de salvar
+            const btn = document.getElementById('btnSalvarLancamento');
+            btn.innerHTML = `<i class="fas fa-save mr-2"></i> Atualizar Lançamento`;
+
+            // Rola para o formulário
+            document.getElementById('formLancamento').scrollIntoView({ behavior: 'smooth' });
+        };
+        
+        /**
+         * Exclui um lançamento do Supabase.
+         * @param {string} id ID do lançamento a excluir.
+         */
+        const deleteLancamento = async (id) => {
+            if (confirm('Tem certeza que deseja excluir este lançamento? Esta ação é irreversível e afetará os saldos das contas.')) {
+                
+                // Exclusão: SUPABASE INTEGRATION POINT - DELETE
+                const { error } = await supabase
+                    .from('lancamentos')
+                    .delete()
+                    .eq('id', id);
+
+                if (error) {
+                    console.error("Erro Supabase:", error);
+                    showMessage(`Erro ao excluir lançamento: ${error.message}`, 'error');
+                } else {
+                    showMessage('Lançamento excluído e saldos recalculados no Supabase.', 'success');
+                    await renderAll(); // Recarrega dados após sucesso
+                }
+            }
+        };
+
+
+        // ====================================================================
+        // CONCILIAÇÃO BANCÁRIA (RELATÓRIO)
+        // ====================================================================
+
+        /**
+         * Gera e exibe o relatório de conciliação.
+         */
+        const generateRelatorio = () => {
+            const dataInicioStrBr = document.getElementById('relDataInicio').value;
+            const dataFimStrBr = document.getElementById('relDataFim').value;
+            const contaId = document.getElementById('relContaId').value;
+            const relContainer = document.getElementById('relatorioContainer');
+            const tblBody = document.getElementById('tblRelatorioLancamentos');
+            const noMsg = document.getElementById('noRelatorioLancamentosMsg');
+            
+            // CONVERSÃO: Filtro de datas para formato ISO para cálculos
+            const dataInicioIso = convertDateBrToIso(dataInicioStrBr);
+            const dataFimIso = convertDateBrToIso(dataFimStrBr);
+
+            if (!dataInicioIso || !dataFimIso || !contaId) {
+                showMessage('Preencha a Data Início, Data Fim e Conta Bancária e garanta que as datas estão no formato dd/mm/aaaa e são válidas.', 'error');
+                return;
+            }
+
+            const conta = state.contas.find(c => c.id == contaId);
+            if (!conta) {
+                showMessage('Conta bancária não encontrada.', 'error');
+                return;
+            }
+
+            // 1. Calcular Saldo Anterior (usa dataInicioIso)
+            let saldoAnterior = calculatePreviousBalance(contaId, dataInicioIso);
+            let saldoAtualAcumulado = saldoAnterior;
+
+            // 2. Filtrar Lançamentos no Período (inclusivo, usa dataIso)
+            const lancamentosPeriodo = state.lancamentos
+                .filter(l => l.contaId == contaId && l.data >= dataInicioIso && l.data <= dataFimIso)
+                .sort((a, b) => {
+                    // Ordenação: Data Ascendente (ISO), depois Data de Criação Ascendente
+                    if (a.data !== b.data) {
+                        return new Date(a.data).getTime() - new Date(b.data).getTime();
+                    }
+                    return new Date(a.criacao).getTime() - new Date(b.criacao).getTime();
+                });
+
+            // 3. Renderizar Cabeçalho e Saldo Anterior
+            document.getElementById('relContaNome').textContent = sanitizeHtml(conta.nome);
+            document.getElementById('relPeriodo').textContent = `${dataInicioStrBr} a ${dataFimStrBr}`; // Exibe em BR
+            document.getElementById('relDataGeracao').textContent = new Date().toLocaleDateString('pt-BR');
+
+            tblBody.innerHTML = `
+                <tr class="bg-blue-50/50 font-bold">
+                    <td data-label="Data"></td>
+                    <td data-label="Descrição" colspan="3">SALDO ANTERIOR</td>
+                    <td data-label="Sinal" class="text-center"></td>
+                    <td data-label="Saldo Acumulado" id="relSaldoAnterior" class="text-right">${formatMoney(saldoAnterior)}</td>
+                </tr>
+            `;
+
+            // 4. Renderizar Lançamentos
+            if (lancamentosPeriodo.length === 0) {
+                noMsg.classList.remove('hidden');
+                document.getElementById('tblRelatorioFooter').classList.add('hidden');
+            } else {
+                noMsg.classList.add('hidden');
+                document.getElementById('tblRelatorioFooter').classList.remove('hidden');
+                lancamentosPeriodo.forEach(l => {
+                    const categoria = state.categorias.find(c => c.id == l.categoriaId);
+                    const isCredito = categoria?.tipo === 'CREDITO';
+                    const sinal = isCredito ? '+' : '-';
+                    const valorLancamento = parseFloat(l.valor) || 0;
+                    const rowClass = isCredito ? 'bg-green-50/50' : 'bg-red-50/50';
+
+                    if (isCredito) {
+                        saldoAtualAcumulado += valorLancamento;
+                    } else {
+                        saldoAtualAcumulado -= valorLancamento;
+                    }
+
+                    const row = document.createElement('tr');
+                    row.className = `hover:bg-gray-100 ${rowClass}`;
+                    row.innerHTML = `
+                        <td data-label="Data">${convertDateIsoToBr(l.data)}</td>
+                        <td data-label="Descrição">${sanitizeHtml(l.descricao)}</td>
+                        <td data-label="Categoria">${sanitizeHtml(categoria?.nome || 'Sem Cat.')}</td>
+                        <td data-label="Valor Lançamento" class="text-right">${formatMoney(valorLancamento)}</td>
+                        <td data-label="Sinal" class="text-center font-bold text-lg ${isCredito ? 'text-green-600' : 'text-red-600'}">${sinal}</td>
+                        <td data-label="Saldo Acumulado" class="text-right font-bold">${formatMoney(saldoAtualAcumulado)}</td>
+                    `;
+                    tblBody.appendChild(row);
+                });
+            }
+
+            // 5. Renderizar Saldo Final
+            document.getElementById('relSaldoFinal').textContent = formatMoney(saldoAtualAcumulado);
+
+            relContainer.classList.remove('hidden');
+        };
+
+        /**
+         * Exporta o relatório visível para PDF.
+         */
+        const exportRelatorioPDF = () => {
+            const element = document.getElementById('relatorioContent');
+            const dataFimStr = document.getElementById('relDataFim').value;
+
+            const opt = {
+                margin: 10,
+                filename: `ConciliacaoBancaria_${dataFimStr.replace(/\//g, '-')}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, logging: true, dpi: 192, letterRendering: true },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            // Certifica que todos os elementos estão visíveis antes de gerar o PDF
+            html2pdf().set(opt).from(element).save();
+        };
+
+        // ====================================================================
+        // NAVEGAÇÃO E EVENTOS GLOBAIS
+        // ====================================================================
+
+        /**
+         * Abre o menu lateral (drawer).
+         */
+        const openDrawer = () => {
+            document.getElementById('side-drawer').classList.add('open');
+            document.getElementById('drawer-backdrop').classList.add('open', 'block');
+        };
+
+        /**
+         * Fecha o menu lateral (drawer).
+         */
+        const closeDrawer = () => {
+            document.getElementById('side-drawer').classList.remove('open');
+            document.getElementById('drawer-backdrop').classList.remove('open', 'block');
+            document.getElementById('drawer-backdrop').classList.add('hidden'); // Oculta o backdrop após a transição
+        };
+
+
+        // ====================================================================
+        // SETUP INICIAL
+        // ====================================================================
+
+        const setupEvents = () => {
+            // Navegação
+            document.getElementById('hamburger-btn').addEventListener('click', openDrawer);
+            document.getElementById('close-drawer-btn').addEventListener('click', closeDrawer);
+            document.getElementById('drawer-backdrop').addEventListener('click', closeDrawer);
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    changePage(e.currentTarget.dataset.page);
+                });
+            });
+
+            // GESTÃO DE CATEGORIAS
+            document.getElementById('btnNovaCategoria').addEventListener('click', () => openCategoriaForm());
+            document.getElementById('btnCancelarCategoria').addEventListener('click', closeCategoriaForm);
+            document.getElementById('formCategoria').addEventListener('submit', saveCategoria);
+
+            // GESTÃO DE CONTAS
+            document.getElementById('btnNovaConta').addEventListener('click', () => openContaForm());
+            document.getElementById('btnCancelarConta').addEventListener('click', closeContaForm);
+            document.getElementById('formConta').addEventListener('submit', saveConta);
+
+            // GESTÃO DE LANÇAMENTOS
+            document.getElementById('formLancamento').addEventListener('submit', saveLancamento);
+            document.querySelectorAll('#filtroDataInicio, #filtroDataFim, #filtroCategoria, #filtroConta').forEach(el => {
+                el.addEventListener('change', renderLancamentos);
+            });
+            
+            // EVENTOS DE MÁSCARA MONETÁRIA
+            document.querySelectorAll('.monetary-input').forEach(input => {
+                input.addEventListener('input', (e) => {
+                    // Mantém o cursor na posição correta após a formatação
+                    const cursorPosition = input.selectionStart;
+                    const originalLength = input.value.length;
+                    
+                    input.value = formatToBRLForInput(input);
+                    
+                    const newLength = input.value.length;
+                    const delta = newLength - originalLength;
+                    input.selectionEnd = cursorPosition + delta;
+                });
+                // Garante que a formatação seja mantida mesmo ao perder o foco (blur)
+                input.addEventListener('blur', (e) => {
+                    if (e.target.value.trim() === 'R$ 0,00' || e.target.value.trim() === '') {
+                        e.target.value = ''; // Limpa se for zero ou vazio
+                    } else {
+                        e.target.value = formatToBRLForInput(e.target);
+                    }
+                });
+                // Permite apenas dígitos e backspace/delete
+                input.addEventListener('keydown', (e) => {
+                    // Permite teclas especiais (backspace, delete, setas, etc.)
+                    if (e.key.length > 1) return;
+                    
+                    // Impede caracteres não-numéricos
+                    if (!e.ctrlKey && !e.metaKey && !/[0-9]/.test(e.key) && e.key !== 'Backspace' && e.key !== 'Delete' && e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') {
+                        e.preventDefault();
+                    }
+                });
+            });
+            
+            // EVENTOS DE MÁSCARA DE DATA
+            document.querySelectorAll('.date-masked-input').forEach(input => {
+                input.addEventListener('input', (e) => {
+                    formatToDateBr(input);
+                    // Dispara o evento de mudança para que os filtros/relatórios sejam atualizados
+                    input.dispatchEvent(new Event('change'));
+                });
+                // Permite apenas dígitos e barra (a barra é ignorada pela função, mas permite a digitação)
+                input.addEventListener('keydown', (e) => {
+                    // Permite teclas especiais (backspace, delete, setas, etc.)
+                    if (e.key.length > 1) return;
+                    
+                    // Impede caracteres não-numéricos (permite apenas 0-9)
+                    if (!e.ctrlKey && !e.metaKey && !/[0-9]/.test(e.key) && e.key !== 'Backspace' && e.key !== 'Delete' && e.key !== 'ArrowLeft' && e.key !== 'ArrowRight' && e.key !== '/') {
+                         e.preventDefault();
+                    }
+                    
+                    // Limita a 10 caracteres
+                    if (input.value.length >= 10 && e.key.length === 1 && /[0-9]/.test(e.key)) {
+                        e.preventDefault();
+                    }
+                });
+            });
+
+            // CONCILIAÇÃO BANCÁRIA
+            document.getElementById('btnGerarRelatorio').addEventListener('click', generateRelatorio);
+            document.getElementById('btnExportarPDF').addEventListener('click', exportRelatorioPDF);
+
+            // Validação de filtros de conciliação para habilitar o botão
+            document.querySelectorAll('#relDataInicio, #relDataFim, #relContaId').forEach(el => {
+                el.addEventListener('change', () => {
+                    // Usamos a função de conversão/validação para verificar se as datas estão corretas e se a conta foi selecionada
+                    const inicioValid = convertDateBrToIso(document.getElementById('relDataInicio').value);
+                    const fimValid = convertDateBrToIso(document.getElementById('relDataFim').value);
+                    const conta = document.getElementById('relContaId').value;
+                    
+                    document.getElementById('btnGerarRelatorio').disabled = !(inicioValid && fimValid && conta);
+                });
+            });
+
+        };
+
+        /**
+         * Função principal de inicialização da aplicação.
+         */
+        const initializeApp = async () => {
+            // 1. Carregar dados do Supabase (async)
+            await loadData();
+
+            // 2. Configurar eventos
+            setupEvents();
+
+            // 3. Renderizar todos os componentes dependentes do estado
+            populateSelects(); // Popula selects antes de renderizar
+            renderCategorias();
+            renderContas();
+            renderLancamentos(); 
+
+            // 4. Definir a página inicial
+            changePage(currentPage);
+        };
+
+        // Inicializa a aplicação quando o DOM estiver completamente carregado
+        document.addEventListener('DOMContentLoaded', initializeApp);
+
+    </script>
+</body>
+</html>
