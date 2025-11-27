@@ -675,6 +675,17 @@
                                 <p id="saldoTotal" class="text-lg font-bold text-blue-900">R$ 0,00</p>
                             </div>
                         </div>
+
+                        <!-- NOVA LINHA PARA BOTÕES DE EXPORTAÇÃO E IMPORTAÇÃO -->
+                        <div class="flex flex-col md:flex-row justify-center md:justify-end space-y-3 md:space-y-0 md:space-x-3 pt-6 border-t mt-6">
+                            <button id="btnExportarBackup" class="btn-secondary">
+                                <i class="fas fa-download mr-2"></i> Exportar Backup (JSON)
+                            </button>
+                            <!-- Se fosse ter importação, o botão viria aqui -->
+                            <!-- <button id="btnImportarBackup" class="btn-secondary">
+                                <i class="fas fa-upload mr-2"></i> Importar Backup (JSON)
+                            </button> -->
+                        </div>
                     </div>
                 </div>
 
@@ -887,6 +898,9 @@
                             </tfoot>
                         </table>
                         <p id="noRelatorioLancamentosMsg" class="text-center p-6 text-gray-500 hidden">Nenhum lançamento encontrado para este período e conta.</p>
+                        
+                        <!-- AJUSTE_PDF: Container invisível para a versão PDF formatada em lista -->
+                        <div id="pdf-custom-content" style="display: none;"></div>
                     </div>
                 </div>
             </section>
@@ -1990,7 +2004,9 @@
         // ====================================================================
         // CONCILIAÇÃO BANCÁRIA (RELATÓRIO)
         // ====================================================================
-
+        
+        // AJUSTE_PDF: Esta função foi modificada para gerar o conteúdo HTML no formato de lista
+        // (em vez de tabela), que será usado diretamente pela exportação PDF.
         /**
          * Gera e exibe o relatório de conciliação.
          */
@@ -2001,6 +2017,7 @@
             const relContainer = document.getElementById('relatorioContainer');
             const tblBody = document.getElementById('tblRelatorioLancamentos');
             const noMsg = document.getElementById('noRelatorioLancamentosMsg');
+            const relatorioContent = document.getElementById('relatorioContent'); // AJUSTE_PDF: Obtém o container para injetar a lista formatada
             
             // CONVERSÃO: Filtro de datas para formato ISO para cálculos
             const dataInicioIso = convertDateBrToIso(dataInicioStrBr);
@@ -2025,7 +2042,6 @@
             }
 
             // 1. Calcular Saldo Anterior (Regra: Saldo anterior só é aplicável a UMA conta específica)
-            // Se for 'Todas as Contas', o saldo anterior deve ser zero para fins de relatório.
             let saldoAnterior = 0;
             if (contaId !== 'ALL_ACCOUNTS') {
                  saldoAnterior = calculatePreviousBalance(contaId, dataInicioIso);
@@ -2048,12 +2064,11 @@
                     return new Date(a.criacao).getTime() - new Date(b.criacao).getTime();
                 });
 
-            // 3. Renderizar Cabeçalho e Saldo Anterior
+            // 3. Renderizar Cabeçalho e Saldo Anterior (Mantido na Tabela principal para exibição na tela)
             document.getElementById('relContaNome').textContent = sanitizeHtml(contaNome);
             document.getElementById('relPeriodo').textContent = `${dataInicioStrBr} a ${dataFimStrBr}`; // Exibe em BR
             document.getElementById('relDataGeracao').textContent = new Date().toLocaleDateString('pt-BR');
 
-            // Renderiza o Saldo Anterior apenas se não for "Todas as Contas"
             let saldoAnteriorRow = `
                 <tr class="bg-blue-50/50 font-bold">
                     <td data-label="Data"></td>
@@ -2065,7 +2080,7 @@
             tblBody.innerHTML = saldoAnteriorRow;
 
 
-            // 4. Renderizar Lançamentos
+            // 4. Renderizar Lançamentos (Tabela principal para exibição na tela)
             if (lancamentosPeriodo.length === 0) {
                 noMsg.classList.remove('hidden');
                 document.getElementById('tblRelatorioFooter').classList.add('hidden');
@@ -2099,30 +2114,169 @@
                 });
             }
 
-            // 5. Renderizar Saldo Final
+            // 5. Renderizar Saldo Final (Tabela principal para exibição na tela)
             document.getElementById('relSaldoFinal').textContent = formatMoney(saldoAtualAcumulado);
 
             relContainer.classList.remove('hidden');
+
+            // =========================================================================
+            // AJUSTE_PDF: GERAÇÃO DA ESTRUTURA PARA EXPORTAÇÃO EM MODO LISTA
+            // Como o html2pdf usa o 'relatorioContent', vamos injetar uma nova div 
+            // formatada com a estrutura de lista exigida para o PDF, garantindo que
+            // a tabela original (para visualização na tela) não seja modificada.
+            // =========================================================================
+
+            let pdfContentHtml = '';
+
+            // AJUSTE_PDF: Header do Relatório
+            pdfContentHtml += `
+                <style>
+                    /* Estilos simples para garantir legibilidade no PDF */
+                    .pdf-header { margin-bottom: 15px; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
+                    .pdf-periodo { font-weight: bold; margin-bottom: 15px; font-size: 14px;}
+                    .pdf-line { font-family: monospace; white-space: pre; line-height: 1.5; font-size: 10px;}
+                    .pdf-line-saldo { font-weight: bold; background-color: #f0f8ff; padding: 5px 0;}
+                    .pdf-final { margin-top: 20px; border-top: 1px solid #ccc; padding-top: 10px; font-size: 16px; font-weight: bold;}
+                </style>
+                <div class="pdf-header">
+                    <h4>Relatório de Conciliação Bancária</h4>
+                    <p>Conta: <span id="relContaNomePdf">${sanitizeHtml(contaNome)}</span></p>
+                    <p>Período: <span>${dataInicioStrBr} a ${dataFimStrBr}</span></p>
+                    <p>Data de Geração: <span>${new Date().toLocaleDateString('pt-BR')}</span></p>
+                </div>
+            `;
+            
+            // AJUSTE_PDF: Saldo Anterior (Primeira linha)
+            pdfContentHtml += `
+                <div class="pdf-periodo">DATA DE EMISSÃO: ${dataInicioStrBr} &nbsp;&nbsp;&nbsp; DATA FINAL: ${dataFimStrBr}</div>
+            `;
+            
+            // Recalcula o acumulado especificamente para a lista PDF
+            let pdfSaldoAcumulado = saldoAnterior; 
+            const saldoAnteriorFormatado = formatMoney(saldoAnterior).padEnd(15, ' ');
+
+            // AJUSTE_PDF: Linha Saldo Anterior (Usando data início como data de referência)
+            pdfContentHtml += `
+                <div class="pdf-line pdf-line-saldo">
+                    ${dataInicioStrBr.padEnd(12, ' ')} - SALDO ANTERIOR - ${saldoAnteriorFormatado}
+                </div>
+            `;
+            
+            // AJUSTE_PDF: Lançamentos Linha a Linha
+            lancamentosPeriodo.forEach(l => {
+                const categoria = state.categorias.find(c => c.id == l.categoriaId);
+                const isCredito = categoria?.tipo === 'CREDITO';
+                const sinal = isCredito ? '+' : '-';
+                const valorLancamento = parseFloat(l.valor) || 0;
+                
+                if (isCredito) {
+                    pdfSaldoAcumulado += valorLancamento;
+                } else {
+                    pdfSaldoAcumulado -= valorLancamento;
+                }
+
+                const dataBr = convertDateIsoToBr(l.data);
+                const catNome = sanitizeHtml(categoria?.nome || 'Sem Categoria');
+                const desc = sanitizeHtml(l.descricao).substring(0, 30).padEnd(30, ' '); // Limita e preenche
+                const valorFormatado = formatMoney(valorLancamento).padEnd(15, ' ');
+                
+                // AJUSTE_PDF: Formato: 01/11/2025 - DESCRIÇÃO_DO_LANÇAMENTO - CATEGORIA - SINAL - VALOR_FORMATADO
+                pdfContentHtml += `
+                    <div class="pdf-line">
+                        ${dataBr.padEnd(12, ' ')} - ${desc} - ${catNome.padEnd(20, ' ')} - ${sinal} - ${valorFormatado}
+                    </div>
+                `;
+            });
+            
+            // AJUSTE_PDF: Saldo Final
+            pdfContentHtml += `
+                <div class="pdf-final">SALDO FINAL: ${formatMoney(pdfSaldoAcumulado)}</div>
+            `;
+            
+            // AJUSTE_PDF: Injeta o conteúdo formatado na div escondida (relatorioContent) que será usada para o PDF
+            // A tabela original para visualização em tela permanece inalterada.
+            const pdfCustomContainer = document.getElementById('pdf-custom-content'); // Container novo
+            if (!pdfCustomContainer) {
+                 // Se o container não existir (não foi criado), injeta um novo
+                 const tempDiv = document.createElement('div');
+                 tempDiv.id = 'pdf-custom-content';
+                 tempDiv.style.display = 'none'; // Esconde na tela
+                 relatorioContent.appendChild(tempDiv);
+            }
+            document.getElementById('pdf-custom-content').innerHTML = pdfContentHtml;
         };
+
 
         /**
          * Exporta o relatório visível para PDF.
          */
         const exportRelatorioPDF = () => {
-            const element = document.getElementById('relatorioContent');
+            // AJUSTE_PDF: Exportamos o conteúdo customizado para o PDF
+            const element = document.getElementById('pdf-custom-content'); 
             const dataFimStr = document.getElementById('relDataFim').value;
+            
+            // AJUSTE_PDF: TORNA O ELEMENTO VISÍVEL TEMPORARIAMENTE PARA O html2pdf
+            element.style.display = 'block'; 
 
+            // AJUSTE_PDF: Definição das opções para a exportação
             const opt = {
                 margin: 10,
                 filename: `ConciliacaoBancaria_${dataFimStr.replace(/\//g, '-')}.pdf`,
                 image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: { scale: 2, logging: true, dpi: 192, letterRendering: true },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                // AJUSTE_PDF: Mudo a orientação do jsPDF para "landscape"
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' } 
             };
 
             // Certifica que todos os elementos estão visíveis antes de gerar o PDF
-            html2pdf().set(opt).from(element).save();
+            html2pdf().set(opt).from(element).save().then(() => {
+                // AJUSTE_PDF: ESCONDE O ELEMENTO DE VOLTA APÓS A GERAÇÃO
+                element.style.display = 'none'; 
+            });
         };
+
+        // ====================================================================
+        // GESTÃO DE BACKUP (EXPORTAÇÃO)
+        // ====================================================================
+        
+        /**
+         * Exporta o estado atual completo (categorias, contas, lançamentos) para um arquivo JSON.
+         */
+        const exportBackupJson = () => {
+            // 1. Coleta o estado completo
+            const backupData = {
+                metadata: {
+                    generated_at: new Date().toISOString(),
+                    app_version: 'Gestao Financeira v1.0 (Supabase)',
+                    description: 'Backup lógico completo das tabelas (categorias, contas, lancamentos).'
+                },
+                categorias: state.categorias,
+                contas: state.contas,
+                lancamentos: state.lancamentos
+            };
+
+            // 2. Cria o blob JSON
+            const jsonString = JSON.stringify(backupData, null, 2);
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            
+            // 3. Cria um link de download
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            
+            // 4. Define o nome do arquivo
+            const dateStr = new Date().toISOString().substring(0, 10).replace(/-/g, '');
+            a.download = `backup_financeiro_${dateStr}.json`;
+            
+            // 5. Simula o clique e limpa
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showMessage('Backup JSON gerado com sucesso! Salve o arquivo em um local seguro.', 'success');
+        };
+
 
         // ====================================================================
         // NAVEGAÇÃO E EVENTOS GLOBAIS
@@ -2217,6 +2371,12 @@
          * Ele só executa a consulta se a última execução foi há mais de 24 horas.
          */
         const supabaseKeepAlive = async () => {
+            // CORREÇÃO: Adicionamos um guard clause para garantir que o cliente exista
+            if (!supabase) {
+                updateKeepAliveStatus(`Falha crítica: Cliente Supabase não inicializado. Verifique as chaves.`, false);
+                return;
+            }
+            
             const lastExecution = localStorage.getItem('supabase_keep_alive_time');
             const now = Date.now();
             const twentyFourHours = 24 * 60 * 60 * 1000; 
@@ -2361,6 +2521,9 @@
             document.getElementById('btnGerarRelatorio').addEventListener('click', generateRelatorio);
             document.getElementById('btnExportarPDF').addEventListener('click', exportRelatorioPDF);
 
+            // BACKUP MANUAL (NOVO)
+            document.getElementById('btnExportarBackup').addEventListener('click', exportBackupJson);
+
             // ALTERAÇÃO 2: Validação de filtros de conciliação para habilitar o botão
             document.querySelectorAll('#relDataInicio, #relDataFim, #relContaId').forEach(el => {
                 el.addEventListener('change', () => {
@@ -2387,6 +2550,9 @@
          * Função principal de inicialização da aplicação.
          */
         const initializeApp = async () => {
+            // CORREÇÃO: Colocamos o KeepAlive aqui para rodar apenas se o cliente Supabase for criado
+            // e antes de carregar os dados. Isso garante que o status inicial seja exibido.
+            
             // 1. Carregar dados do Supabase (async)
             await loadData();
 
